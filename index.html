@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>AGAC Tank Farm SCADA Engineering Field Handbook</title>
+<meta name="description" content="Field engineering toolkit & PWA guide for SCADA, PLC programming, API 2350 overfill protection, and loop diagnostics at AGAC Dubai terminal.">
+<link rel="canonical" href="https://githubbest729.github.io/agac-tankfarm-scada-pwa/">
+
+<!-- Open Graph / Facebook / LinkedIn / WhatsApp -->
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://githubbest729.github.io/agac-tankfarm-scada-pwa/">
+<meta property="og:title" content="AGAC Tank Farm SCADA Engineering Field Handbook">
+<meta property="og:description" content="Field engineering toolkit & PWA guide for SCADA, PLC programming, API 2350 overfill protection, and loop diagnostics at AGAC Dubai terminal.">
+<meta property="og:image" content="https://githubbest729.github.io/agac-tankfarm-scada-pwa/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+
+<!-- Twitter Cards -->
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:url" content="https://githubbest729.github.io/agac-tankfarm-scada-pwa/">
+<meta name="twitter:title" content="AGAC Tank Farm SCADA Engineering Field Handbook">
+<meta name="twitter:description" content="Field engineering toolkit & PWA guide for SCADA, PLC programming, API 2350 overfill protection, and loop diagnostics at AGAC Dubai terminal.">
+<meta name="twitter:image" content="https://githubbest729.github.io/agac-tankfarm-scada-pwa/og-image.png">
+
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="AGAC SCADA">
+<meta name="theme-color" content="#0f172a">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="favicon.ico" sizes="any">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand"><svg width="28" height="28" viewBox="0 0 32 32" aria-hidden="true"><rect x="6" y="6" width="20" height="22" rx="3" fill="none" stroke="currentColor" stroke-width="2.5"/><rect x="9" y="16" width="14" height="9" fill="currentColor"/></svg><b>AGAC Tank Farm SCADA</b><span id="netpill" class="pill">Online</span></div>
+  <div class="themes" role="group" aria-label="Theme">
+    <button data-theme-btn="dark">SCADA</button>
+    <button data-theme-btn="sun">Sunlight</button>
+    <button data-theme-btn="oled">OLED</button>
+  </div>
+  <nav id="tabs" aria-label="Sections">
+    <button data-view="overview" class="on">Overview</button>
+    <button data-view="design">Design</button>
+    <button data-view="plc">PLC</button>
+    <button data-view="hmi">HMI</button>
+    <button data-view="sat">SAT</button>
+    <button data-view="calc">Calculators</button>
+    <button data-view="install">Install</button>
+  </nav>
+  <input id="q" type="search" placeholder="Search handbook…" hidden>
+</header>
+<main id="main">
+  <section id="view-overview" class="view on"></section>
+  <section id="view-design" class="view"></section>
+  <section id="view-plc" class="view"></section>
+  <section id="view-hmi" class="view"></section>
+  <section id="view-sat" class="view"></section>
+  <section id="view-calc" class="view"></section>
+  <section id="view-install" class="view"></section>
+</main>
+<div class="fab" role="toolbar" aria-label="Quick actions">
+  <button id="bSearch">Search</button>
+  <button id="bShare">Share</button>
+  <button id="bZip">Export ZIP</button>
+  <span id="fabNet" class="pill">Online</span>
+</div>
+<dialog id="dlg"><div id="dlgBody"></div><button id="dlgClose">Close</button></dialog>
+<div id="toast" class="toast" hidden></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="js/field-guide.js"></script>
+<script src="js/calculators.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

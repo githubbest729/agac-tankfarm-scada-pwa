@@ -1,0 +1,34 @@
+:root{--bg-primary:#0f172a;--bg-card:#1e293b;--text-primary:#e2e8f0;--text-muted:#94a3b8;--accent-amber:#fbbf24;--accent-cyan:#22d3ee;--border-color:#334155;--bw:1px;--shadow:0 2px 10px #0006;--tr:.2s}
+[data-theme=sun]{--bg-primary:#fff;--bg-card:#fff;--text-primary:#000;--text-muted:#000;--accent-amber:#000;--accent-cyan:#000;--border-color:#000;--bw:4px;--shadow:none;font-weight:700}
+[data-theme=oled]{--bg-primary:#000;--bg-card:#000;--text-primary:#94a3b8;--text-muted:#64748b;--accent-amber:#a8842a;--accent-cyan:#3b8a99;--border-color:#1e293b;--shadow:none;--tr:0s}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;overscroll-behavior:none}
+body{background:var(--bg-primary);color:var(--text-primary);font:16px/1.55 -apple-system,system-ui,"Segoe UI",sans-serif;display:flex;flex-direction:column;padding:env(safe-area-inset-top) env(safe-area-inset-left) 0 env(safe-area-inset-right)}
+[data-theme=oled] *{transition:none!important;animation:none!important;box-shadow:none!important}
+.top{padding:10px 12px 0;border-bottom:var(--bw) solid var(--border-color)}
+.brand{display:flex;align-items:center;gap:8px;color:var(--accent-amber)}.brand b{flex:1}
+.pill{font-size:12px;padding:2px 10px;border:var(--bw) solid var(--border-color);border-radius:99px}.pill.off{color:var(--accent-amber);border-color:var(--accent-amber)}
+button{min-height:48px;padding:0 14px;font:inherit;color:var(--text-primary);background:var(--bg-card);border:var(--bw) solid var(--border-color);border-radius:10px;cursor:pointer}
+button.on,button:active{border-color:var(--accent-amber);color:var(--accent-amber)}
+[data-theme=sun] button.on{background:#000;color:#fff}
+.themes{display:flex;gap:6px;margin:8px 0}.themes button{flex:1}
+#tabs{display:flex;gap:6px;overflow-x:auto;padding-bottom:8px}#tabs button{white-space:nowrap;flex:none}
+#q{width:100%;min-height:48px;margin:0 0 8px;padding:0 12px;font:inherit;color:var(--text-primary);background:var(--bg-card);border:var(--bw) solid var(--border-color);border-radius:10px}
+main{flex:1;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;padding:14px 12px calc(96px + env(safe-area-inset-bottom));max-width:900px;width:100%;margin:0 auto}
+.view{display:none}.view.on{display:block}
+h2{margin:4px 0 12px;color:var(--accent-cyan)}h3{margin:0 0 6px;color:var(--accent-amber)}
+.card{background:var(--bg-card);border:var(--bw) solid var(--border-color);border-radius:12px;padding:14px;margin-bottom:12px;box-shadow:var(--shadow)}
+.card ul{margin:0;padding-left:20px}.card.hide{display:none}
+label{display:block;margin:8px 0 2px;color:var(--text-muted);font-size:14px}
+.card input,.card select{width:100%;min-height:48px;padding:0 10px;font:inherit;color:var(--text-primary);background:var(--bg-primary);border:var(--bw) solid var(--border-color);border-radius:8px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.out{margin-top:10px;padding:10px;border-left:6px solid var(--accent-cyan);background:var(--bg-primary);font-variant-numeric:tabular-nums}
+.out.bad{border-color:#ef4444}.out.warn{border-color:var(--accent-amber)}
+.fab{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(10px + env(safe-area-inset-bottom));display:flex;gap:6px;align-items:center;padding:6px;background:var(--bg-card);border:var(--bw) solid var(--accent-amber);border-radius:16px;box-shadow:var(--shadow)}
+.fab button{min-width:48px}
+dialog{max-width:520px;width:92%;color:var(--text-primary);background:var(--bg-card);border:var(--bw) solid var(--accent-amber);border-radius:14px}
+dialog::backdrop{background:#000a}
+textarea{width:100%;min-height:120px;background:var(--bg-primary);color:var(--text-primary);border:var(--bw) solid var(--border-color);border-radius:8px}
+.toast{position:fixed;top:calc(12px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);background:var(--accent-amber);color:#000;padding:10px 16px;border-radius:10px;z-index:9}
+.tank{display:block;margin:0 auto;max-width:200px}.tank .lvl{transition:y var(--tr),height var(--tr);fill:var(--accent-cyan)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
