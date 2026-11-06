@@ -52,7 +52,6 @@
     <button data-view="tools">Field Tools</button>
     <button data-view="install">Install</button>
   </nav>
-  <input id="q" type="search" placeholder="Search handbook…" hidden>
 </header>
 <main id="main">
   <section id="view-overview" class="view on"></section>
@@ -70,6 +69,7 @@
   <button id="bZip">Export ZIP</button>
 </div>
 <dialog id="dlg"><div id="dlgBody"></div><button id="dlgClose">Close</button></dialog>
+<dialog id="sdlg" aria-label="Search"><input id="sq" type="search" placeholder="Search cards, guides, calculators…" autocomplete="off" autocapitalize="off"><div id="sres"></div><div class="row"><button id="sClose">Close</button></div></dialog>
 <div id="toast" class="toast" hidden></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script src="js/field-guide.js"></script>
