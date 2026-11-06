@@ -68,3 +68,19 @@ pre{overflow-x:auto;margin:8px 0 0;padding:10px;background:var(--bg-primary);bor
 [data-theme=sun] .tip{background:#000!important;color:#fff!important}
 .steps{padding-left:22px;margin:8px 0}.steps li{margin-bottom:14px}.steps button{margin:6px 6px 0 0}
 .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}.chip{min-height:40px;height:40px;padding:0 12px;border-radius:999px;font-size:14px}
+
+/* Dock clearance: last element scrolls fully clear of the floating bar */
+main,#content,.tab-content,.tab-pane{padding-bottom:120px!important;margin-bottom:env(safe-area-inset-bottom)!important}
+.dock-spacer{height:20px;flex:none}
+
+/* Custom scrollbars */
+*{scrollbar-width:thin;scrollbar-color:#1e293b #020617}
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:#020617}
+::-webkit-scrollbar-thumb{background:#1e293b;border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:#334155}
+[data-theme=sun] *{scrollbar-color:#000 #fff}
+[data-theme=sun] ::-webkit-scrollbar-track{background:#fff}
+[data-theme=sun] ::-webkit-scrollbar-thumb{background:#000}
+[data-theme=oled] ::-webkit-scrollbar-track{background:#000}
+#tabs{scrollbar-width:none}
