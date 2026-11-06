@@ -36,7 +36,7 @@
 </head>
 <body>
 <header class="top">
-  <div class="brand"><svg width="28" height="28" viewBox="0 0 32 32" aria-hidden="true"><rect x="6" y="6" width="20" height="22" rx="3" fill="none" stroke="currentColor" stroke-width="2.5"/><rect x="9" y="16" width="14" height="9" fill="currentColor"/></svg><b>AGAC Tank Farm SCADA</b><span id="netpill" class="pill">Online</span></div>
+  <div class="brand"><svg width="28" height="28" viewBox="0 0 32 32" aria-hidden="true"><rect x="6" y="6" width="20" height="22" rx="3" fill="none" stroke="currentColor" stroke-width="2.5"/><rect x="9" y="16" width="14" height="9" fill="currentColor"/></svg><b>AGAC Tank Farm SCADA</b><span id="netpill" class="pill">Online</span><button id="bGuide" class="gbtn" type="button" aria-label="Quick start guide">?</button></div>
   <div class="themes" role="group" aria-label="Theme">
     <button data-theme-btn="dark">SCADA</button>
     <button data-theme-btn="sun">Sunlight</button>
@@ -69,7 +69,13 @@
   <button id="bZip">Export ZIP</button>
 </div>
 <dialog id="dlg"><div id="dlgBody"></div><button id="dlgClose">Close</button></dialog>
-<dialog id="sdlg" aria-label="Search"><input id="sq" type="search" placeholder="Search cards, guides, calculators…" autocomplete="off" autocapitalize="off"><div id="sres"></div><div class="row"><button id="sClose">Close</button></div></dialog>
+<dialog id="sdlg" aria-label="Search"><input id="sq" type="search" placeholder="Search cards, guides, calculators…" autocomplete="off" autocapitalize="off"><div class="chips"><button class="chip" data-q="Pt100">Pt100</button><button class="chip" data-q="NE43">NE43</button><button class="chip" data-q="API 2350">API 2350</button><button class="chip" data-q="MOV">MOV</button><button class="chip" data-q="RS-485">RS-485</button></div><div id="sres"></div><div class="row"><button id="sClose">Close</button></div></dialog>
+<dialog id="gdlg" aria-label="Quick start"><h3>SCADA Field Engineer Quick Start</h3><ol class="steps">
+<li><b>Review architecture and API 2350</b><br>Read the plant layout, Purdue levels and overfill protection rules.<br><button data-go="overview">Open Overview</button><button data-go="design">Open Design</button></li>
+<li><b>Implement S7-1500 / ControlLogix logic</b><br>Start from the MOV block and NE43 scaling templates.<br><button data-go="plc">Open PLC</button></li>
+<li><b>Perform 5-point injection and stroke tests</b><br>Use the loop calibrator and the ESD stroke stopwatch.<br><button data-go="tools">Open Field Tools</button></li>
+<li><b>Complete and save the SAT checklist</b><br>Tick items as you go; progress is saved on this device.<br><button data-go="sat">Open SAT</button></li></ol>
+<div class="row"><button id="gClose">Close</button></div></dialog>
 <div id="toast" class="toast" hidden></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script src="js/field-guide.js"></script>
