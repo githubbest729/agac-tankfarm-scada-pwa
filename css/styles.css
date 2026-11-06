@@ -14,7 +14,7 @@ button.on,button:active{border-color:var(--accent-amber);color:var(--accent-ambe
 .themes{display:flex;gap:6px;margin:8px 0}.themes button{flex:1}
 #tabs{display:flex;gap:6px;overflow-x:auto;padding-bottom:8px}#tabs button{white-space:nowrap;flex:none}
 #q{width:100%;min-height:48px;margin:0 0 8px;padding:0 12px;font:inherit;color:var(--text-primary);background:var(--bg-card);border:var(--bw) solid var(--border-color);border-radius:10px}
-main{flex:1;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;padding:14px 12px calc(95px + env(safe-area-inset-bottom));max-width:900px;width:100%;margin:0 auto}
+main{flex:1;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;padding:14px 12px calc(110px + env(safe-area-inset-bottom));max-width:900px;width:100%;margin:0 auto}
 .view{display:none}.view.on{display:block}
 h2{margin:4px 0 12px;color:var(--accent-cyan)}h3{margin:0 0 6px;color:var(--accent-amber)}
 .card{background:var(--bg-card);border:var(--bw) solid var(--border-color);border-radius:12px;padding:14px;margin-bottom:12px;box-shadow:var(--shadow)}
@@ -59,3 +59,12 @@ pre{overflow-x:auto;margin:8px 0 0;padding:10px;background:var(--bg-primary);bor
 .sr small{color:var(--text-muted)}.sr span{font-size:14px;font-weight:400}
 .hl{outline:4px solid var(--accent-amber);outline-offset:2px}
 .rec{display:flex;justify-content:space-between;align-items:center;gap:8px}.rec .del{flex:none;min-width:48px;padding:0}
+
+#content,.tab-pane{padding-bottom:calc(110px + env(safe-area-inset-bottom))}
+.gbtn{width:44px;height:44px;min-height:44px;padding:0;border-radius:50%;flex:none;font-weight:700;font-size:20px;color:var(--accent-amber);border-color:var(--accent-amber)}
+.codebox{position:relative}.codebox pre{padding-top:48px}
+.copybtn{position:absolute;top:14px;right:6px;min-height:36px;height:36px;padding:0 12px;font-size:13px;border-radius:8px}
+.tip{position:absolute;top:18px;right:112px;padding:4px 10px;border-radius:6px;font-size:13px;background:var(--accent-amber);color:#000}
+[data-theme=sun] .tip{background:#000!important;color:#fff!important}
+.steps{padding-left:22px;margin:8px 0}.steps li{margin-bottom:14px}.steps button{margin:6px 6px 0 0}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}.chip{min-height:40px;height:40px;padding:0 12px;border-radius:999px;font-size:14px}
