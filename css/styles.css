@@ -14,7 +14,7 @@ button.on,button:active{border-color:var(--accent-amber);color:var(--accent-ambe
 .themes{display:flex;gap:6px;margin:8px 0}.themes button{flex:1}
 #tabs{display:flex;gap:6px;overflow-x:auto;padding-bottom:8px}#tabs button{white-space:nowrap;flex:none}
 #q{width:100%;min-height:48px;margin:0 0 8px;padding:0 12px;font:inherit;color:var(--text-primary);background:var(--bg-card);border:var(--bw) solid var(--border-color);border-radius:10px}
-main{flex:1;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;padding:14px 12px calc(110px + env(safe-area-inset-bottom));max-width:900px;width:100%;margin:0 auto}
+main{flex:1;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;padding:14px 12px calc(2rem + env(safe-area-inset-bottom));max-width:900px;width:100%;margin:0 auto}
 .view{display:none}.view.on{display:block}
 h2{margin:4px 0 12px;color:var(--accent-cyan)}h3{margin:0 0 6px;color:var(--accent-amber)}
 .card{background:var(--bg-card);border:var(--bw) solid var(--border-color);border-radius:12px;padding:14px;margin-bottom:12px;box-shadow:var(--shadow)}
@@ -24,8 +24,6 @@ label{display:block;margin:8px 0 2px;color:var(--text-muted);font-size:14px}
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .out{margin-top:10px;padding:10px;border-left:6px solid var(--accent-cyan);background:var(--bg-primary);font-variant-numeric:tabular-nums}
 .out.bad{border-color:#ef4444}.out.warn{border-color:var(--accent-amber)}
-.fab{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(10px + env(safe-area-inset-bottom));display:flex;gap:6px;align-items:center;padding:6px;background:var(--bg-card);border:var(--bw) solid var(--accent-amber);border-radius:16px;box-shadow:var(--shadow)}
-.fab button{min-width:48px}
 dialog{max-width:520px;width:92%;color:var(--text-primary);background:var(--bg-card);border:var(--bw) solid var(--accent-amber);border-radius:14px}
 dialog::backdrop{background:#000a}
 textarea{width:100%;min-height:120px;background:var(--bg-primary);color:var(--text-primary);border:var(--bw) solid var(--border-color);border-radius:8px}
@@ -60,7 +58,6 @@ pre{overflow-x:auto;margin:8px 0 0;padding:10px;background:var(--bg-primary);bor
 .hl{outline:4px solid var(--accent-amber);outline-offset:2px}
 .rec{display:flex;justify-content:space-between;align-items:center;gap:8px}.rec .del{flex:none;min-width:48px;padding:0}
 
-#content,.tab-pane{padding-bottom:calc(110px + env(safe-area-inset-bottom))}
 .gbtn{width:44px;height:44px;min-height:44px;padding:0;border-radius:50%;flex:none;font-weight:700;font-size:20px;color:var(--accent-amber);border-color:var(--accent-amber)}
 .codebox{position:relative}.codebox pre{padding-top:48px}
 .copybtn{position:absolute;top:14px;right:6px;min-height:36px;height:36px;padding:0 12px;font-size:13px;border-radius:8px}
@@ -70,8 +67,6 @@ pre{overflow-x:auto;margin:8px 0 0;padding:10px;background:var(--bg-primary);bor
 .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}.chip{min-height:40px;height:40px;padding:0 12px;border-radius:999px;font-size:14px}
 
 /* Dock clearance: last element scrolls fully clear of the floating bar */
-main,#content,.tab-content,.tab-pane{padding-bottom:120px!important;margin-bottom:env(safe-area-inset-bottom)!important}
-.dock-spacer{height:20px;flex:none}
 
 /* Custom scrollbars */
 *{scrollbar-width:thin;scrollbar-color:#1e293b #020617}
@@ -84,3 +79,11 @@ main,#content,.tab-content,.tab-pane{padding-bottom:120px!important;margin-botto
 [data-theme=sun] ::-webkit-scrollbar-thumb{background:#000}
 [data-theme=oled] ::-webkit-scrollbar-track{background:#000}
 #tabs{scrollbar-width:none}
+
+.brand{flex-wrap:wrap;justify-content:space-between}
+.bl{display:flex;align-items:center;gap:8px;flex:1 1 auto;min-width:0}.bl b{min-width:0}
+.bacts{display:flex;gap:6px;margin-left:auto}
+.hbtn{height:44px;min-height:44px;padding:0 10px;font-size:14px;white-space:nowrap;border-radius:10px}
+.tank2{display:block;margin:0 auto;max-width:340px;width:100%}.tank2 .lvl{fill:var(--accent-cyan)}
+.al{stroke-width:2}.al.crit{stroke:#ef4444}.al.warn{stroke:#f59e0b;stroke-dasharray:6 3}
+[data-theme=sun] .tank2 .lvl{fill:#888}[data-theme=sun] .al.crit,[data-theme=sun] .al.warn{stroke:#000}
