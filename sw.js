@@ -1,5 +1,5 @@
-const V='agac-scada-v1',ASSETS=['./','index.html','offline.html','manifest.webmanifest','favicon.svg','favicon.ico','apple-touch-icon.png','og-image.png','css/styles.css','js/app.js','js/calculators.js','js/field-guide.js','icons/icon-192.png','icons/icon-512.png','icons/icon-maskable-192.png','icons/icon-maskable-512.png'];
-self.addEventListener('install',e=>{e.waitUntil(caches.open(V).then(c=>c.addAll(ASSETS)))});
+const V='agac-scada-v2',ASSETS=['./','index.html','offline.html','manifest.webmanifest','favicon.svg','favicon.ico','apple-touch-icon.png','og-image.png','css/styles.css','js/app.js','js/calculators.js','js/field-guide.js','icons/icon-192.png','icons/icon-512.png','icons/icon-maskable-192.png','icons/icon-maskable-512.png'];
+self.addEventListener('install',e=>{self.skipWaiting();e.waitUntil(caches.open(V).then(c=>c.addAll(ASSETS)))});
 self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(k=>Promise.all(k.filter(x=>x!==V).map(x=>caches.delete(x)))).then(()=>self.clients.claim()))});
 self.addEventListener('message',e=>{if(e.data==='SKIP_WAITING')self.skipWaiting()});
 self.addEventListener('fetch',e=>{
