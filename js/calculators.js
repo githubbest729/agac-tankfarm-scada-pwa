@@ -20,7 +20,7 @@ function renderCalc(){const v=$('#view-calc');v.innerHTML=`<h2>Interactive Field
 <div class="card"><h3>Proof-test timer</h3><label>Minutes</label><input id="pt" type="number" step="any" inputmode="decimal" value="15"><button id="ptBtn" style="margin-top:6px">Start</button><div id="ptOut" class="out">Not started</div></div>
 <div class="card"><h3>Tank faceplate</h3>${tankSvg(60)}<label>Level %</label><input id="lp" type="range" min="0" max="100" value="60"></div>`;
  v.addEventListener('input',e=>{const i=e.target.id;if(['ma','lo','hi'].includes(i))mAcalc();else if(i==='lp'){const p=+e.target.value;$('#lv').setAttribute('y',116-1.04*p);$('#lv').setAttribute('height',1.04*p);$('#lvt').textContent=p+'%'}else if(['shape','dia','lvl','temp','sg','alpha'].includes(i))volCalc();else if(['odia','rate','gap','resp'].includes(i))overfill()});
- $('#shape').onchange=volCalc;$('#apiBtn').onclick=()=>{apiCalc();$('#sg').value=sgFromAPI(n('api')).toFixed(4);volCalc()};$('#ptBtn').onclick=proof;mAcalc();volCalc();overfill();renderTools()}
+ $('#shape').onchange=volCalc;$('#apiBtn').onclick=()=>{apiCalc();$('#sg').value=sgFromAPI(n('api')).toFixed(4);volCalc()};$('#ptBtn').onclick=proof;mAcalc();volCalc();overfill();renderTools();renderSat();renderPt100()}
 
 /* ---------- Field tools ---------- */
 const NUM='type="number" step="any" inputmode="decimal"';
@@ -47,11 +47,42 @@ function renderTools(){const v=$('#view-tools');
  v.innerHTML=`<h2>Field Tools</h2>
 <div class="card"><h3>Loop calibrator (5-point)</h3><div class="grid"><div><label>Tag</label><input id="ctag" type="text" placeholder="LT-101"></div><div><label>Unit</label><input id="cunit" type="text" value="m"></div><div><label>Range low</label><input id="clo" ${NUM} value="0"></div><div><label>Range high</label><input id="chi" ${NUM} value="20"></div></div><label>Tolerance (% of span)</label><input id="ctol" ${NUM} value="0.25">
 <table class="cal"><tr><th>%</th><th>EU</th><th>Exp mA</th><th>Measured</th><th>Error</th></tr>${PTS.map((p,i)=>`<tr><td>${p}</td><td id="u${i}"></td><td>${(4+16*p/100).toFixed(2)}</td><td><input id="m${i}" class="cm" ${NUM}></td><td id="e${i}">-</td></tr>`).join('')}</table>
-<div class="row"><button id="calSave">Save record</button><button id="calClear">Clear records</button></div><div id="calList"></div></div>
+<div class="row"><button id="calSave">Save record</button><button id="calClear">Clear records</button><button id="calCsv">Export to CSV</button></div><div id="calList"></div></div>
 <div class="card"><h3>ESD valve stroke stopwatch</h3><div class="big" id="swOut">0.000 s</div><label>Target stroke time (s)</label><input id="swTarget" ${NUM} value="30"><div class="row"><button id="swBtn">Start</button><button id="swReset">Reset</button></div><div id="swRes" class="out">Ready</div></div>
 <div class="card"><h3>Modbus register to IEEE 754 float</h3><label>Input format</label><select id="rfmt"><option value="hex">Hex</option><option value="dec">Decimal</option></select><div class="grid"><div><label>Register 1</label><input id="r1" type="text" inputmode="text" autocapitalize="characters" value="41C8"></div><div><label>Register 2</label><input id="r2" type="text" inputmode="text" autocapitalize="characters" value="0000"></div></div><label class="chk"><input id="bs" type="checkbox"> Byte swap</label><label class="chk"><input id="ws" type="checkbox"> Word swap</label><div id="fpOut" class="out"></div><div id="fpAll"></div></div>`;
  const ux=()=>{const lo=n('clo'),hi=n('chi');PTS.forEach((p,i)=>$('#u'+i).textContent=(lo+p/100*(hi-lo)).toFixed(2))};
  v.addEventListener('input',e=>{const i=e.target.id;if(['clo','chi'].includes(i))ux();if(e.target.classList.contains('cm')||['clo','chi','ctol'].includes(i))calRows();if(i==='swTarget'&&swT0===null)swCheck();if(['r1','r2','bs','ws'].includes(i))fpCalc()});
  $('#rfmt').onchange=()=>{const hex=$('#rfmt').value==='hex';[ 'r1','r2'].forEach(id=>{const e=$('#'+id),x=parseInt(e.value,hex?10:16);if(!isNaN(x))e.value=hex?x.toString(16).toUpperCase().padStart(4,'0'):parseInt(e.value,16)});fpCalc()};
- $('#calSave').onclick=saveCal;$('#calClear').onclick=()=>{if(confirm('Delete all saved calibration records?')){store.set([]);listRecords()}};
+ $('#calSave').onclick=saveCal;$('#calCsv').onclick=csvCal;$('#calClear').onclick=()=>{if(confirm('Delete all saved calibration records?')){store.set([]);listRecords()}};
  $('#swBtn').onclick=swToggle;$('#swReset').onclick=swReset;ux();listRecords();fpCalc()}
+
+/* ---------- CSV export ---------- */
+function csvCal(){const r=store.get();if(!r.length){toast('No records to export');return}
+ const q=v=>'"'+String(v==null?'':v).replace(/"/g,'""')+'"';
+ const head=['Timestamp','Tag','Unit','Range low','Range high','Tolerance %','Result','Max error %',...PTS.flatMap(p=>['Measured mA @'+p+'%','Error % @'+p+'%'])];
+ const lines=[head.map(q).join(',')].concat(r.map(x=>[new Date(x.ts).toISOString(),x.tag,x.unit,x.lo,x.hi,x.tol,x.pass?'PASS':'FAIL',x.maxErr.toFixed(4),...x.rows.flatMap(w=>[w.meas,w.err===null?'':w.err.toFixed(4)])].map(q).join(',')));
+ const b=new Blob(['\ufeff'+lines.join('\r\n')],{type:'text/csv'}),a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='loop-calibration-'+new Date().toISOString().slice(0,10)+'.csv';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),5000);toast('CSV exported')}
+
+/* ---------- Pt100 (IEC 60751) ---------- */
+function rtdT(R,R0){const A=3.9083e-3,B=-5.775e-7,C=-4.183e-12;let t=(R/R0-1)/A;
+ for(let i=0;i<40;i++){const f=t<0?R0*(1+A*t+B*t*t+C*(t-100)*t*t*t):R0*(1+A*t+B*t*t),d=t<0?R0*(A+2*B*t+C*(4*t*t*t-300*t*t)):R0*(A+2*B*t),nt=t-(f-R)/d;if(Math.abs(nt-t)<1e-9){t=nt;break}t=nt}return t}
+function rtdCalc(){const R=n('rtdR'),R0=n('rtdR0'),o=$('#rtdOut');if(!(R>0)||!(R0>0)){o.className='out bad';o.textContent='Enter resistance and R0 above 0 ohm';return}
+ const t=rtdT(R,R0);if(!isFinite(t)||t<-200.5||t>850.5){o.className='out bad';o.innerHTML=`Outside IEC 60751 range (-200 to 850 °C).<br>Check for open sensor (very high ohms) or short (very low ohms).`;return}
+ o.className='out';o.innerHTML=`<b>${t.toFixed(2)} °C</b> (${(t*9/5+32).toFixed(2)} °F)<br>Sensitivity near 0 °C: ${(R0*3.9083e-3).toFixed(3)} ohm/°C`}
+function renderPt100(){$('#view-tools').insertAdjacentHTML('beforeend',`<div class="card"><h3>Pt100 RTD ohms to °C (IEC 60751)</h3><div class="grid"><div><label>Resistance (ohm)</label><input id="rtdR" ${NUM} value="138.51"></div><div><label>R0 at 0 °C (ohm)</label><input id="rtdR0" ${NUM} value="100"></div></div><div id="rtdOut" class="out"></div><small>Callendar-Van Dusen, alpha 0.00385. Use R0 = 1000 for Pt1000. Subtract lead resistance for 2-wire sensors first.</small></div>`);
+ $('#view-tools').addEventListener('input',e=>{if(e.target.id==='rtdR'||e.target.id==='rtdR0')rtdCalc()});rtdCalc()}
+
+/* ---------- Interactive SAT checklist ---------- */
+const SAT_ITEMS=[
+['Loop testing',['Tag, range and units match the loop sheet','0/25/50/75/100% injection recorded (as-found and as-left)','Alarm setpoints and fail direction verified','HART / fieldbus diagnostics clear']],
+['Dry runs',['MOV open/close strokes and limit feedback confirmed','HH trip closes inlet ESD valve within target time','Comm loss and power loss drop to defined fail-safe state','Bypass is key-locked, alarmed and logged']],
+['Water batching',['Flow totaliser matches level change','Volume reconciliation within tolerance','No leaks at flanges and instrument connections']],
+['ATG calibration',['Reference height checked by hand dip','Radar compared to dip at three or more levels','Temperature element readings verified','Tank table version and corrections documented']]];
+const satGet=()=>{try{return JSON.parse(localStorage.getItem('satChecks')||'{}')}catch(_){return{}}};
+const satSet=o=>{try{localStorage.setItem('satChecks',JSON.stringify(o))}catch(_){}};
+function satProgress(){const t=document.querySelectorAll('.satchk').length,c=document.querySelectorAll('.satchk:checked').length;$('#satProg').textContent=c+' of '+t+' complete';$('#satProg').className='out '+(c===t?'':'warn')}
+function renderSat(){const s=satGet();let i=0;
+ const body=SAT_ITEMS.map(([g,items])=>'<h3 style="margin-top:12px">'+g+'</h3>'+items.map(t=>{const id='s'+(i++);return '<label class="chk"><input type="checkbox" class="satchk" id="'+id+'"'+(s[id]?' checked':'')+'><span>'+t+'</span></label>'}).join('')).join('');
+ $('#view-sat').insertAdjacentHTML('beforeend','<article class="card"><h3>Interactive SAT checklist</h3><div id="satProg" class="out"></div>'+body+'<div class="row"><button id="satReset">Reset Checklist</button></div></article>');
+ $('#view-sat').addEventListener('change',e=>{if(!e.target.classList.contains('satchk'))return;const o=satGet();if(e.target.checked)o[e.target.id]=1;else delete o[e.target.id];satSet(o);satProgress()});
+ $('#satReset').onclick=()=>{if(confirm('Reset the whole SAT checklist?')){satSet({});document.querySelectorAll('.satchk').forEach(c=>c.checked=false);satProgress()}};satProgress()}
