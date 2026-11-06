@@ -24,8 +24,16 @@ function init(){renderGuide();renderCalc();net();
  document.querySelectorAll('[data-theme-btn]').forEach(b=>b.onclick=()=>setTheme(b.dataset.themeBtn));
  document.querySelectorAll('[data-view]').forEach(b=>b.onclick=()=>showView(b.dataset.view));
  $('#bShare').onclick=share;$('#bZip').onclick=zip;$('#dlgClose').onclick=()=>$('#dlg').close();
- $('#bSearch').onclick=()=>{const q=$('#q');q.hidden=!q.hidden;if(!q.hidden)q.focus()};
- $('#q').oninput=e=>{const s=e.target.value.toLowerCase();if(s)document.querySelectorAll('.view').forEach(v=>v.classList.add('on'));else showView(location.hash.slice(1)||'overview');document.querySelectorAll('.card').forEach(c=>c.classList.toggle('hide',!!s&&!c.textContent.toLowerCase().includes(s)))};
+ const esc=s=>s.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+ let sIdx=[];
+ const buildIdx=()=>{sIdx=[];let k=0;document.querySelectorAll('.view').forEach(v=>{const vid=v.id.replace('view-',''),tab=document.querySelector('[data-view="'+vid+'"]'),lab=tab?tab.textContent:vid;v.querySelectorAll('.card').forEach(c=>{if(!c.id)c.id='c'+(k++);const h=c.querySelector('h3'),title=h?h.textContent:'Section',text=c.textContent.replace(/\s+/g,' ').trim();sIdx.push({id:c.id,vid,lab,title,text,low:(title+' '+text).toLowerCase()})})})};
+ const runSearch=()=>{const q=$('#sq').value.trim().toLowerCase(),o=$('#sres');if(!q){o.innerHTML='<div class="out">Type to search all sections, tools and calculators.</div>';return}
+  const terms=q.split(/\s+/),hits=sIdx.filter(x=>terms.every(t=>x.low.includes(t))).slice(0,30);
+  o.innerHTML=hits.length?hits.map(x=>{const tp=x.text.toLowerCase().indexOf(terms[0]),sn=tp<0?x.text.slice(0,90):(tp>30?'…':'')+x.text.slice(Math.max(0,tp-30),tp+70);return '<button class="sr" data-id="'+x.id+'" data-v="'+x.vid+'"><b>'+esc(x.title)+'</b> <small>'+esc(x.lab)+'</small><br><span>'+esc(sn)+'</span></button>'}).join(''):'<div class="out warn">No matches</div>'};
+ $('#bSearch').onclick=()=>{buildIdx();$('#sq').value='';runSearch();$('#sdlg').showModal();$('#sq').focus()};
+ $('#sq').oninput=runSearch;$('#sClose').onclick=()=>$('#sdlg').close();
+ $('#sdlg').onclick=e=>{if(e.target===$('#sdlg'))$('#sdlg').close()};
+ $('#sres').onclick=e=>{const b=e.target.closest('.sr');if(!b)return;$('#sdlg').close();showView(b.dataset.v);setTimeout(()=>{const c=document.getElementById(b.dataset.id);if(!c)return;c.scrollIntoView({block:'start',behavior:'smooth'});c.classList.add('hl');setTimeout(()=>c.classList.remove('hl'),2500)},80)};
  const qp=new URLSearchParams(location.search);let t='dark';try{t=localStorage.getItem('theme')||'dark'}catch(_){}
  setTheme(qp.get('theme')||t);showView(location.hash.slice(1)||'overview');
  if(navigator.getBattery)navigator.getBattery().then(b=>{const chk=()=>{if(b.level<.15&&!b.charging&&root.dataset.theme!=='oled'&&!sessionStorage.getItem('batAsked')){sessionStorage.setItem('batAsked',1);if(confirm('Battery below 15%. Switch to OLED saver mode?'))setTheme('oled')}};b.onlevelchange=chk;chk()}).catch(()=>{});
