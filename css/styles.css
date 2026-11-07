@@ -111,3 +111,8 @@ details.guide-acc summary,details.alarmset summary{display:flex;align-items:cent
 .guide-acc .sub{margin-top:10px;padding-top:10px;border-top:var(--bw) solid var(--border-color)}
 details.alarmset{margin:6px 0}
 .tank2{max-width:240px}
+
+.hint{display:block;margin-top:4px;font-size:12px;line-height:1.35;color:var(--text-muted);font-weight:400}
+.legend{margin-top:8px}.legend .hint{margin-top:2px}
+.presets{margin:0 0 10px}
+[data-theme=sun] .hint{color:#000}
