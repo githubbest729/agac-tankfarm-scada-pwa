@@ -79,18 +79,18 @@ function renderPt100(){$('#view-tools').insertAdjacentHTML('beforeend',`<div cla
 
 /* ---------- Interactive SAT checklist ---------- */
 const SAT_ITEMS=[
-['Loop testing',['Tag, range and units match the loop sheet','0/25/50/75/100% injection recorded (as-found and as-left)','Alarm setpoints and fail direction verified','HART / fieldbus diagnostics clear']],
-['Dry runs',['MOV open/close strokes and limit feedback confirmed','HH trip closes inlet ESD valve within target time','Comm loss and power loss drop to defined fail-safe state','Bypass is key-locked, alarmed and logged']],
-['Water batching',['Flow totaliser matches level change','Volume reconciliation within tolerance','No leaks at flanges and instrument connections']],
-['ATG calibration',['Reference height checked by hand dip','Radar compared to dip at three or more levels','Temperature element readings verified','Tank table version and corrections documented']]];
-const satGet=()=>{try{return JSON.parse(localStorage.getItem('satChecks')||'{}')}catch(_){return{}}};
-const satSet=o=>{try{localStorage.setItem('satChecks',JSON.stringify(o))}catch(_){}};
+['Cold Loop',['Tag, range, units and loop sheet match the as-built P&ID','Cable continuity, insulation resistance and shield earthing checked','IS barrier parameters (Uo/Io/Po vs Ui/Ii/Pi) and earth verified','Loop supply voltage and loop resistance within device limits','HART / fieldbus communication and configuration read back OK']],
+['Hot Loop (0-100%)',['Inject or simulate 0, 25, 50, 75 and 100% and record as-found / as-left','HMI value and units match the field reading at all five points','LL, L, H and HH alarm setpoints and deadbands tested','NE43 under-range, over-range and wire-break faults annunciate with bad quality','Trend, historian and tag naming verified in SCADA']],
+['Safety Interlock / ESD',['Independent HH switch trips with no PLC or SCADA involvement','ESD valve closes on HH trip and stroke time is recorded against target','Hardwired ESD overrides local and remote MOV commands','Bypass is key-locked, alarmed, logged and time-limited','Fail-safe state confirmed on loss of power, air and communications']],
+['ATG Dip Verification',['Reference (datum) height confirmed with a calibrated dip tape','Radar / servo reading compared to manual dip at 3 or more levels','Water dip and free-water check recorded','Average temperature compared to a spot / thief reading','Tank table version, corrections and density configuration documented']]];
+const satGet=()=>{try{return JSON.parse(localStorage.getItem('satChecks2')||'{}')}catch(_){return{}}};
+const satSet=o=>{try{localStorage.setItem('satChecks2',JSON.stringify(o))}catch(_){}};
 function satProgress(){const t=document.querySelectorAll('.satchk').length,c=document.querySelectorAll('.satchk:checked').length;$('#satProg').textContent=c+' of '+t+' complete';$('#satProg').className='out '+(c===t?'':'warn')}
 function renderSat(){const s=satGet();let i=0;
  const body=SAT_ITEMS.map(([g,items])=>'<h3 style="margin-top:12px">'+g+'</h3>'+items.map(t=>{const id='s'+(i++);return '<label class="chk"><input type="checkbox" class="satchk" id="'+id+'"'+(s[id]?' checked':'')+'><span>'+t+'</span></label>'}).join('')).join('');
- $('#view-sat').insertAdjacentHTML('beforeend','<article class="card"><h3>Interactive SAT checklist</h3><div id="satProg" class="out"></div>'+body+'<div class="row"><button id="satReset">Reset Checklist</button></div></article>');
+ $('#view-sat').insertAdjacentHTML('beforeend','<article class="card"><h3>Interactive SAT checklist (20 steps)</h3><div class="satmeta"><div><label>Tank / loop reference</label><input id="satRef" type="text" placeholder="TK-101 / LT-101"></div><div><label>Engineer</label><input id="satEng" type="text"></div></div><div id="satProg" class="out"></div>'+body+'<div class="row"><button id="satReset">Reset Checklist</button><button id="satExp">Export SAT Report</button></div></article>');
  $('#view-sat').addEventListener('change',e=>{if(!e.target.classList.contains('satchk'))return;const o=satGet();if(e.target.checked)o[e.target.id]=1;else delete o[e.target.id];satSet(o);satProgress()});
- $('#satReset').onclick=()=>{if(confirm('Reset the whole SAT checklist?')){satSet({});document.querySelectorAll('.satchk').forEach(c=>c.checked=false);satProgress()}};satProgress()}
+ $('#satExp').onclick=satExport;$('#satReset').onclick=()=>{if(confirm('Reset the whole SAT checklist?')){satSet({});document.querySelectorAll('.satchk').forEach(c=>c.checked=false);satProgress()}};satProgress()}
 
 /* ---------- Modbus exception decoder & RS-485 guide ---------- */
 const MBX={
@@ -110,10 +110,14 @@ function renderModbus(){$('#view-tools').insertAdjacentHTML('beforeend',`<div cl
 /* ---------- Live tank faceplate ---------- */
 function drawTank(){const box=$('#tankBox');if(!box)return;const sph=$('#shape').value==='sph',D=n('dia'),H=sph?D:n('thgt');let h=n('lvl');
  if(!(H>0)||!(D>0)||isNaN(h)){$('#tankInfo').className='out warn';$('#tankInfo').textContent='Enter diameter, height and level';return}
- h=Math.max(0,Math.min(h,H));const pct=h/H*100,al={HH:n('aHH'),H:n('aH'),L:n('aL'),LL:n('aLL')},top=20,bot=240,y=p=>bot-(bot-top)*p/100,ly=y(pct),x0=sph?20:60;
- const body=sph?`<defs><clipPath id="tclip"><circle cx="130" cy="130" r="110"/></clipPath></defs><rect class="lvl" x="20" y="${ly}" width="220" height="${bot-ly}" clip-path="url(#tclip)"/><circle cx="130" cy="130" r="110" fill="none" stroke="currentColor" stroke-width="3"/>`:`<rect class="lvl" x="62" y="${ly}" width="136" height="${bot-ly}"/><rect x="60" y="20" width="140" height="220" rx="6" fill="none" stroke="currentColor" stroke-width="3"/>`;
- const lines=Object.entries(al).filter(([k,v])=>v>=0&&v<=100).map(([k,v])=>`<line class="al ${k==='HH'||k==='LL'?'crit':'warn'}" x1="${x0}" x2="246" y1="${y(v)}" y2="${y(v)}"/><text x="250" y="${y(v)+4}" font-size="11" fill="currentColor">${k} ${v}%</text>`).join('');
- box.innerHTML=`<svg class="tank2" viewBox="0 0 320 260" role="img" aria-label="Tank level ${pct.toFixed(0)} percent">${body}${lines}</svg>`;
+ h=Math.max(0,Math.min(h,H));const pct=h/H*100,al={HH:n('aHH'),H:n('aH'),L:n('aL'),LL:n('aLL')},top=20,bot=240,y=p=>bot-(bot-top)*p/100,x0=sph?20:60,ty=220*(1-pct/100),sig=[sph,al.HH,al.H,al.L,al.LL].join('|');
+ const setL=()=>{const e=document.getElementById('tliq');if(e)e.style.transform='translateY('+ty+'px)'};
+ if(box.dataset.sig!==sig){
+  const clip=sph?'<circle cx="130" cy="130" r="110"/>':'<rect x="62" y="20" width="136" height="220"/>',frame=sph?'<circle cx="130" cy="130" r="110" fill="none" stroke="currentColor" stroke-width="3"/>':'<rect x="60" y="20" width="140" height="220" rx="6" fill="none" stroke="currentColor" stroke-width="3"/>';
+  const lines=Object.entries(al).filter(([k,v])=>v>=0&&v<=100).map(([k,v])=>`<line class="al ${k==='HH'||k==='LL'?'crit':'warn'}" x1="${x0}" x2="246" y1="${y(v)}" y2="${y(v)}"/><text x="250" y="${y(v)+4}" font-size="11" fill="currentColor">${k} ${v}%</text>`).join('');
+  box.innerHTML=`<svg class="tank2" viewBox="0 0 320 260" role="img"><defs><clipPath id="tclip">${clip}</clipPath></defs><g clip-path="url(#tclip)"><rect id="tliq" class="lvl" x="20" y="20" width="220" height="220" style="transform:translateY(220px)"/></g>${frame}${lines}</svg>`;
+  box.dataset.sig=sig;(window.requestAnimationFrame||setTimeout)(()=>(window.requestAnimationFrame||setTimeout)(setL))}else setL();
+ box.firstChild.setAttribute('aria-label','Tank level '+pct.toFixed(0)+' percent');
  const R=D/2,V=sph?Math.PI*h*h*(3*R-h)/3:Math.PI/4*D*D*h;
  const st=pct>=al.HH?['HH alarm','bad']:pct>=al.H?['H alarm','warn']:pct<=al.LL?['LL alarm','bad']:pct<=al.L?['L alarm','warn']:['Normal',''];
  $('#tankInfo').className='out '+st[1];$('#tankInfo').innerHTML=`<b>${st[0]}</b><br>Level ${h.toFixed(2)} m of ${H.toFixed(2)} m (${pct.toFixed(1)}%)<br>Gross volume ${V.toFixed(1)} m³`}
@@ -121,9 +125,18 @@ function drawTank(){const box=$('#tankBox');if(!box)return;const sph=$('#shape')
 /* ---------- Input persistence ---------- */
 const PKEY='agacInputs';
 const pGet=()=>{try{return JSON.parse(localStorage.getItem(PKEY)||'{}')}catch(_){return{}}};
-function pSave(e){const t=e.target;if(!t.id||!t.closest||!t.closest('#view-calc,#view-tools'))return;const o=pGet();o[t.id]=t.type==='checkbox'?t.checked:t.value;try{localStorage.setItem(PKEY,JSON.stringify(o))}catch(_){}}
+function pSave(e){const t=e.target;if(!t.id||!t.closest||t.classList.contains('satchk')||!t.closest('#view-calc,#view-tools,#view-sat'))return;const o=pGet();o[t.id]=t.type==='checkbox'?t.checked:t.value;try{localStorage.setItem(PKEY,JSON.stringify(o))}catch(_){}}
 document.addEventListener('input',pSave);document.addEventListener('change',pSave);
 function pRestore(){const o=pGet();
- for(const id in o){const el=document.getElementById(id);if(!el||!el.closest('#view-calc,#view-tools'))continue;if(el.type==='checkbox')el.checked=!!o[id];else el.value=o[id]}
- document.querySelectorAll('#view-calc input,#view-tools input').forEach(el=>{if(el.id&&o[el.id]!==undefined&&el.type!=='checkbox')el.dispatchEvent(new Event('input',{bubbles:true}))});
+ for(const id in o){const el=document.getElementById(id);if(!el||!el.closest('#view-calc,#view-tools,#view-sat'))continue;if(el.type==='checkbox')el.checked=!!o[id];else el.value=o[id]}
+ document.querySelectorAll('#view-calc input,#view-tools input,#view-sat input').forEach(el=>{if(el.id&&o[el.id]!==undefined&&el.type!=='checkbox')el.dispatchEvent(new Event('input',{bubbles:true}))});
  [volCalc,drawTank,mbxShow,fpCalc,mAcalc,overfill].forEach(f=>{try{f()}catch(_){}})}
+
+/* ---------- SAT report export ---------- */
+function satReport(){const s=satGet(),L=['AGAC TANK FARM SCADA - SAT REPORT','Reference: '+($('#satRef').value||'-'),'Engineer: '+($('#satEng').value||'-'),'Date: '+new Date().toLocaleString(),'Progress: '+document.querySelectorAll('.satchk:checked').length+' of '+document.querySelectorAll('.satchk').length,''];let i=0;
+ SAT_ITEMS.forEach(([g,items])=>{L.push(g.toUpperCase());items.forEach(x=>{L.push((s['s'+i]?'[x] ':'[ ] ')+x);i++});L.push('')});L.push('Signature: ______________________');return L.join('\n')}
+function satExport(){const txt=satReport();
+ dlg('<h3>SAT report</h3><textarea id="satTxt" readonly style="min-height:240px;font-size:12px">'+txt.replace(/&/g,'&amp;').replace(/</g,'&lt;')+'</textarea><div class="row"><button id="satCp">Copy</button><button id="satDl">Download .txt</button><button id="satSh">Share</button></div>');
+ $('#satCp').onclick=async()=>{try{await navigator.clipboard.writeText(txt)}catch(_){$('#satTxt').select();document.execCommand('copy')}toast('Copied')};
+ $('#satDl').onclick=()=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([txt],{type:'text/plain'}));a.download='SAT-report-'+new Date().toISOString().slice(0,10)+'.txt';document.body.appendChild(a);a.click();a.remove()};
+ $('#satSh').onclick=()=>{if(navigator.share)navigator.share({title:'SAT report',text:txt}).catch(()=>{});else toast('Share not supported, use Copy')}}
