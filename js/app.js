@@ -30,32 +30,32 @@ function net(){const on=navigator.onLine;['netpill'].forEach(i=>{const e=$('#'+i
 async function share(){const d={title:'AGAC Tank Farm SCADA Engineering Field Handbook',text:'SCADA field toolkit and calculators for tank farm engineers.',url:'https://githubbest729.github.io/agac-tankfarm-scada-pwa/'};
  if(navigator.share){try{await navigator.share(d);return}catch(e){if(e.name==='AbortError')return}}
  dlg(`<h3>Share</h3><textarea id="shTxt" readonly>${d.title}\n${d.url}</textarea><button id="cp">Copy to clipboard</button>`);
- $('#cp').onclick=async()=>{try{await navigator.clipboard.writeText(d.title+'\n'+d.url)}catch(_){$('#shTxt').select();document.execCommand('copy')}toast('Copied')}}
+ $('#cp').onclick=async()=>{try{await navigator.clipboard.writeText(d.title+'\n'+d.url)}catch(_){$('#shTxt').select();document.execCommand('copy')}toast('Copied');triggerHaptic('success')}}
 function loadJSZip(){return new Promise((res,rej)=>{if(window.JSZip)return res();const s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';s.onload=()=>window.JSZip?res():rej(new Error('JSZip missing'));s.onerror=()=>rej(new Error('JSZip failed to load'));document.head.appendChild(s)})}
 async function zip(){if(!window.JSZip){try{await loadJSZip()}catch(_){dlg('<h3>ZIP export unavailable</h3><p>The JSZip library is not loaded and could not be fetched. Connect to the internet once, reload the app so it can be cached, then try Export ZIP again.</p><button id="zRetry">Retry</button>');$('#zRetry').onclick=()=>{$('#dlg').close();zip()};return}}toast('Building ZIP…');const z=new JSZip();
  try{const miss=[];for(const f of FILES){try{const r=await fetch(f);if(r.ok)z.file(f,await r.blob());else miss.push(f)}catch(_){miss.push(f)}}
  if(miss.length===FILES.length){toast('No files available. Go online and try again.');return}
- const b=await z.generateAsync({type:'blob'}),a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='agac-tankfarm-scada-pwa.zip';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),5000);toast(miss.length?'ZIP ready, but '+miss.length+' file(s) were missing':'ZIP ready')}catch(e){toast('ZIP failed: '+e.message)}}
+ const b=await z.generateAsync({type:'blob'}),a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='agac-tankfarm-scada-pwa.zip';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),5000);toast(miss.length?'ZIP ready, but '+miss.length+' file(s) were missing':'ZIP ready');triggerHaptic(miss.length?'warning':'success')}catch(e){toast('ZIP failed: '+e.message)}}
 function init(){renderGuide();renderCalc();net();
  addEventListener('online',net);addEventListener('offline',net);
- document.querySelectorAll('[data-theme-btn]').forEach(b=>b.onclick=()=>setTheme(b.dataset.themeBtn));
- document.querySelectorAll('[data-view]').forEach(b=>b.onclick=()=>showView(b.dataset.view));
- $('#bShare').onclick=share;$('#bZip').onclick=zip;$('#dlgClose').onclick=()=>$('#dlg').close();
+ document.querySelectorAll('[data-theme-btn]').forEach(b=>b.onclick=()=>{triggerHaptic('light');setTheme(b.dataset.themeBtn)});
+ document.querySelectorAll('[data-view]').forEach(b=>b.onclick=()=>{triggerHaptic('light');showView(b.dataset.view)});
+ $('#bShare').onclick=()=>{triggerHaptic('light');share()};$('#bZip').onclick=()=>{triggerHaptic('light');zip()};$('#dlgClose').onclick=()=>$('#dlg').close();
  const esc=s=>s.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
  let sIdx=[];
  const buildIdx=()=>{sIdx=[];let k=0;document.querySelectorAll('.view').forEach(v=>{const vid=v.id.replace('view-',''),tab=document.querySelector('[data-view="'+vid+'"]'),lab=tab?tab.textContent:vid;v.querySelectorAll('.card').forEach(c=>{if(!c.id)c.id='c'+(k++);const h=c.querySelector('h3'),title=h?h.textContent:'Section',text=c.textContent.replace(/\s+/g,' ').trim();sIdx.push({id:c.id,vid,lab,title,text,low:(title+' '+text).toLowerCase(),norm:(title+text).toLowerCase().replace(/[\s\-_.]/g,'')})});const h2=v.querySelector('h2');if(h2){const t=h2.textContent;sIdx.push({id:v.id,vid,lab,title:t,text:'Open '+lab+' tab',low:t.toLowerCase(),norm:t.toLowerCase().replace(/[\s\-_.]/g,'')})}})};
  const runSearch=()=>{const q=$('#sq').value.trim().toLowerCase(),o=$('#sres');if(!q){o.innerHTML='<div class="out">Type to search all sections, tools and calculators.</div>';return}
   const terms=q.split(/\s+/),hits=sIdx.filter(x=>terms.every(t=>x.low.includes(t))||x.norm.includes(q.replace(/[\s\-_.]/g,''))).slice(0,30);
   o.innerHTML=hits.length?hits.map(x=>{const tp=x.text.toLowerCase().indexOf(terms[0]),sn=tp<0?x.text.slice(0,90):(tp>30?'…':'')+x.text.slice(Math.max(0,tp-30),tp+70);return '<button class="sr" data-id="'+x.id+'" data-v="'+x.vid+'"><b>'+esc(x.title)+'</b> <small>'+esc(x.lab)+'</small><br><span>'+esc(sn)+'</span></button>'}).join(''):'<div class="out warn">No matches</div>'};
- $('#bSearch').onclick=()=>{buildIdx();$('#sq').value='';runSearch();$('#sdlg').showModal();$('#sq').focus()};
+ $('#bSearch').onclick=()=>{triggerHaptic('light');buildIdx();$('#sq').value='';runSearch();$('#sdlg').showModal();$('#sq').focus()};
  $('#sq').oninput=runSearch;$('#sClose').onclick=()=>$('#sdlg').close();
  $('#sdlg').onclick=e=>{if(e.target===$('#sdlg'))$('#sdlg').close()};
- $('#sres').onclick=e=>{const b=e.target.closest('.sr');if(!b)return;$('#sdlg').close();showView(b.dataset.v);setTimeout(()=>{const c=document.getElementById(b.dataset.id);if(!c)return;c.scrollIntoView({block:'start',behavior:'smooth'});if(c.classList.contains('card')){c.classList.add('hl');setTimeout(()=>c.classList.remove('hl'),2500)}},80)};
+ $('#sres').onclick=e=>{const b=e.target.closest('.sr');if(!b)return;triggerHaptic('light');$('#sdlg').close();showView(b.dataset.v);setTimeout(()=>{const c=document.getElementById(b.dataset.id);if(!c)return;c.scrollIntoView({block:'start',behavior:'smooth'});if(c.classList.contains('card')){c.classList.add('hl');setTimeout(()=>c.classList.remove('hl'),2500)}},80)};
  document.querySelectorAll('.chip').forEach(c=>c.onclick=()=>{$('#sq').value=c.dataset.q;runSearch();$('#sq').focus()});
- $('#bGuide').onclick=()=>$('#gdlg').showModal();$('#gClose').onclick=()=>$('#gdlg').close();
+ $('#bGuide').onclick=()=>{triggerHaptic('light');$('#gdlg').showModal()};$('#gClose').onclick=()=>$('#gdlg').close();
  $('#gdlg').onclick=e=>{const g=e.target.closest('[data-go]');if(g){$('#gdlg').close();showView(g.dataset.go);return}if(e.target===$('#gdlg'))$('#gdlg').close()};
  document.querySelectorAll('.view pre').forEach(p=>{if(p.parentNode.classList.contains('codebox'))return;const w=document.createElement('div');w.className='codebox';p.parentNode.insertBefore(w,p);w.appendChild(p);const b=document.createElement('button');b.type='button';b.className='copybtn';b.textContent='Copy Code';const tip=document.createElement('span');tip.className='tip';tip.textContent='Copied!';tip.hidden=true;w.append(b,tip);
-  b.onclick=async()=>{const txt=p.textContent;try{await navigator.clipboard.writeText(txt)}catch(_){const ta=document.createElement('textarea');ta.value=txt;document.body.appendChild(ta);ta.select();try{document.execCommand('copy')}catch(__){}ta.remove()}tip.hidden=false;setTimeout(()=>tip.hidden=true,1500)}});
+  b.onclick=async()=>{const txt=p.textContent;try{await navigator.clipboard.writeText(txt)}catch(_){const ta=document.createElement('textarea');ta.value=txt;document.body.appendChild(ta);ta.select();try{document.execCommand('copy')}catch(__){}ta.remove()}tip.hidden=false;triggerHaptic('success');setTimeout(()=>tip.hidden=true,1500)}});
  const qp=new URLSearchParams(location.search);let t='dark';try{t=localStorage.getItem('theme')||'dark'}catch(_){}
  setTheme(qp.get('theme')||t);showView(location.hash.slice(1)||'overview');
  if(navigator.getBattery)navigator.getBattery().then(b=>{const chk=()=>{if(b.level<.15&&!b.charging&&root.dataset.theme!=='oled'&&!sessionStorage.getItem('batAsked')){sessionStorage.setItem('batAsked',1);if(confirm('Battery below 15%. Switch to OLED saver mode?'))setTheme('oled')}};b.onlevelchange=chk;chk()}).catch(()=>{});

@@ -1,7 +1,21 @@
+/* ---------- Haptics ---------- */
+function triggerHaptic(type = 'light') {
+  if ('vibrate' in navigator) {
+    if (type === 'light') navigator.vibrate(10);
+    else if (type === 'success') navigator.vibrate([10, 30, 15]);
+    else if (type === 'warning') navigator.vibrate([30, 50, 30]);
+  } else if (!matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    // iOS Safari has no Vibration API; a hidden switch toggle gives a tick on iOS 17.4+
+    iosTick();
+    if (type !== 'light') setTimeout(iosTick, 70);
+  }
+}
+let _hx;
+function iosTick(){try{if(!_hx){_hx=document.createElement('label');_hx.setAttribute('aria-hidden','true');_hx.style.cssText='position:fixed;left:-9999px;top:0;opacity:0;pointer-events:none';_hx.innerHTML='<input type="checkbox" switch>';document.body.appendChild(_hx)}_hx.click()}catch(_){}}
 const $=(s,r=document)=>r.querySelector(s),n=id=>parseFloat($('#'+id).value);
 function ne43(m){if(m<3.6)return['Wire break / fault','bad'];if(m<3.8)return['Under-range (NE43)','warn'];if(m<=20.5)return['Normal','ok'];if(m<=21)return['Over-range (NE43)','warn'];return['Fault (over 21 mA)','bad']}
 function mAcalc(){const m=n('ma'),lo=n('lo'),hi=n('hi');const eu=lo+(m-4)/16*(hi-lo),[s,c]=ne43(m);
- $('#maOut').className='out '+c;$('#maOut').innerHTML=`<b>${s}</b><br>Value: ${eu.toFixed(2)} (${((m-4)/16*100).toFixed(1)}% of span)`}
+ $('#maOut').className='out '+c;if(c==='bad'&&window._ne!=='bad')triggerHaptic('warning');window._ne=c;$('#maOut').innerHTML=`<b>${s}</b><br>Value: ${eu.toFixed(2)} (${((m-4)/16*100).toFixed(1)}% of span)`}
 function sgFromAPI(a){return 141.5/(a+131.5)}
 function volCalc(){const t=$('#shape').value,D=n('dia'),h=n('lvl'),T=n('temp'),sg=n('sg'),a=n('alpha');let V;
  if(t==='cyl')V=Math.PI/4*D*D*h;else{const R=D/2;V=Math.PI*h*h*(3*R-h)/3}
@@ -13,7 +27,7 @@ function apiCalc(){const g=sgFromAPI(n('api'));$('#apiOut').className='out';$('#
 let proofT=null;
 let proofEnd=0;
 function proofTick(){const o=$('#ptOut'),s=Math.max(0,Math.ceil((proofEnd-Date.now())/1000));o.textContent=`Proof test countdown: ${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;if(s<=0){clearInterval(proofT);proofT=null;o.textContent='Time elapsed: record result';if(navigator.vibrate)navigator.vibrate([300,100,300])}}
-function proof(){clearInterval(proofT);const m=n('pt');if(!(m>0)){toast('Enter minutes above 0');return}proofEnd=Date.now()+m*60000;proofTick();proofT=setInterval(proofTick,250)}
+function proof(){clearInterval(proofT);const m=n('pt');if(!(m>0)){toast('Enter minutes above 0');return}triggerHaptic('light');proofEnd=Date.now()+m*60000;proofTick();proofT=setInterval(proofTick,250)}
 document.addEventListener('visibilitychange',()=>{if(proofT&&!document.hidden)proofTick()});addEventListener('pageshow',()=>{if(proofT)proofTick()});
 function tankSvg(p){return `<svg class="tank" viewBox="0 0 100 130" role="img" aria-label="Tank level ${p}%"><rect x="15" y="10" width="70" height="110" rx="6" fill="none" stroke="currentColor" stroke-width="4"/><rect class="lvl" id="lv" x="19" y="${116-1.04*p}" width="62" height="${1.04*p}"/><text x="50" y="70" text-anchor="middle" fill="currentColor" font-size="16" font-weight="700" id="lvt">${p}%</text></svg>`}
 function renderCalc(){const v=$('#view-calc');v.innerHTML=`<h2>Interactive Field Calculators</h2>
@@ -35,12 +49,12 @@ function listRecords(){const r=store.get();$('#calList').innerHTML=r.length?r.ma
 function saveCal(){const rows=calRows();if(rows.some(r=>r.meas===null)){toast('Enter all 5 measured values');return}
  const tg0=$('#ctag').value.trim(),auto=!tg0,tg=tg0||'TAG-TEMP';if(auto)$('#ctag').value=tg;
  const tol=n('ctol'),maxErr=Math.max(...rows.map(r=>Math.abs(r.err))),rec={ts:Date.now(),tag:tg,lo:n('clo'),hi:n('chi'),unit:$('#cunit').value,tol,rows,maxErr,pass:maxErr<=tol};
- const all=store.get();all.push(rec);toast(store.set(all)?(auto?'Saved as TAG-TEMP (tag was empty)':'Calibration saved'):'Storage unavailable');listRecords()}
+ const all=store.get();all.push(rec);toast(store.set(all)?(auto?'Saved as TAG-TEMP (tag was empty)':'Calibration saved'):'Storage unavailable');triggerHaptic(rec.pass?'success':'warning');listRecords()}
 let swT0=null,swRaf=0,swEl=0;
 function swTick(){swEl=performance.now()-swT0;$('#swOut').textContent=(swEl/1000).toFixed(3)+' s';swRaf=requestAnimationFrame(swTick)}
-function swToggle(){if(swT0===null){swT0=performance.now();$('#swBtn').textContent='Stop';$('#swRes').textContent='Running…';$('#swRes').className='out';swTick()}
+function swToggle(){if(swT0===null){triggerHaptic('light');swT0=performance.now();$('#swBtn').textContent='Stop';$('#swRes').textContent='Running…';$('#swRes').className='out';swTick()}
  else{cancelAnimationFrame(swRaf);swEl=performance.now()-swT0;swT0=null;$('#swBtn').textContent='Start';$('#swOut').textContent=(swEl/1000).toFixed(3)+' s';swCheck()}}
-function swCheck(){const tg=n('swTarget')*1000;if(isNaN(tg)||!swEl)return;const ok=swEl<=tg;$('#swRes').className='out '+(ok?'':'bad');$('#swRes').innerHTML=`<b>${ok?'PASS':'FAIL'}</b>: ${Math.round(swEl)} ms vs target ${Math.round(tg)} ms (${ok?'-':'+'}${Math.abs(Math.round(swEl-tg))} ms)`}
+function swCheck(){const tg=n('swTarget')*1000;if(isNaN(tg)||!swEl)return;const ok=swEl<=tg;triggerHaptic(ok?'success':'warning');$('#swRes').className='out '+(ok?'':'bad');$('#swRes').innerHTML=`<b>${ok?'PASS':'FAIL'}</b>: ${Math.round(swEl)} ms vs target ${Math.round(tg)} ms (${ok?'-':'+'}${Math.abs(Math.round(swEl-tg))} ms)`}
 function swReset(){cancelAnimationFrame(swRaf);swT0=null;swEl=0;$('#swBtn').textContent='Start';$('#swOut').textContent='0.000 s';$('#swRes').className='out';$('#swRes').textContent='Ready'}
 function reg(id){let v=$('#'+id).value.trim(),f=$('#rfmt').value;if(!v)return NaN;const x=f==='hex'?(/^(0x)?[0-9a-f]{1,4}$/i.test(v)?parseInt(v.replace(/^0x/i,''),16):NaN):(/^\d{1,5}$/.test(v)?parseInt(v,10):NaN);return x>=0&&x<=65535?x:NaN}
 function toFloat(a,b,bs,ws){let w=ws?[b,a]:[a,b];if(bs)w=w.map(x=>((x&255)<<8)|(x>>8));const dv=new DataView(new ArrayBuffer(4));dv.setUint16(0,w[0]);dv.setUint16(2,w[1]);return{f:dv.getFloat32(0),hex:'0x'+w.map(x=>x.toString(16).padStart(4,'0')).join('').toUpperCase()}}
@@ -58,7 +72,7 @@ function renderTools(){const v=$('#view-tools');
  v.addEventListener('input',e=>{const i=e.target.id;if(['clo','chi'].includes(i))ux();if(e.target.classList.contains('cm')||['clo','chi','ctol'].includes(i))calRows();if(i==='swTarget'&&swT0===null)swCheck();if((i==='r1'||i==='r2')&&$('#rfmt').value==='hex'){const c=e.target.value.replace(/\s+/g,'').replace(/^0x/i,'').replace(/[^0-9a-f]/gi,'').toUpperCase().slice(0,4);if(c!==e.target.value)e.target.value=c}if(['r1','r2','bs','ws'].includes(i))fpCalc()});
  v.addEventListener('focusout',e=>{const i=e.target.id;if((i==='r1'||i==='r2')&&$('#rfmt').value==='hex'){const x=e.target.value;if(x.length>=1&&x.length<4)e.target.value=x.padStart(4,'0');fpCalc()}});
  $('#rfmt').onchange=()=>{const hex=$('#rfmt').value==='hex';[ 'r1','r2'].forEach(id=>{const e=$('#'+id),x=parseInt(e.value,hex?10:16);if(!isNaN(x))e.value=hex?x.toString(16).toUpperCase().padStart(4,'0'):parseInt(e.value,16)});fpCalc()};
- $('#calSave').onclick=saveCal;$('#calList').onclick=e=>{const b=e.target.closest('.del');if(!b||!confirm('Delete this record?'))return;const a=store.get();a.splice(+b.dataset.i,1);store.set(a);listRecords()};$('#calCsv').onclick=csvCal;$('#calClear').onclick=()=>{if(confirm('Delete all saved calibration records?')){store.set([]);listRecords()}};
+ $('#calSave').onclick=saveCal;$('#calList').onclick=e=>{const b=e.target.closest('.del');if(!b||!confirm('Delete this record?'))return;triggerHaptic('warning');const a=store.get();a.splice(+b.dataset.i,1);store.set(a);listRecords()};$('#calCsv').onclick=csvCal;$('#calClear').onclick=()=>{if(confirm('Delete all saved calibration records?')){triggerHaptic('warning');store.set([]);listRecords()}};
  $('#swBtn').onclick=swToggle;$('#swReset').onclick=swReset;ux();listRecords();fpCalc()}
 
 /* ---------- CSV export ---------- */
@@ -66,7 +80,7 @@ function csvCal(){const r=store.get();if(!r.length){toast('No records to export'
  const q=v=>'"'+String(v==null?'':v).replace(/"/g,'""')+'"';
  const head=['Timestamp','Tag','Unit','Range low','Range high','Tolerance %','Result','Max error %',...PTS.flatMap(p=>['Measured mA @'+p+'%','Error % @'+p+'%'])];
  const lines=[head.map(q).join(',')].concat(r.map(x=>[new Date(x.ts).toISOString(),x.tag,x.unit,x.lo,x.hi,x.tol,x.pass?'PASS':'FAIL',x.maxErr.toFixed(4),...x.rows.flatMap(w=>[w.meas,w.err===null?'':w.err.toFixed(4)])].map(q).join(',')));
- const b=new Blob(['\ufeff'+lines.join('\r\n')],{type:'text/csv'}),a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='loop-calibration-'+new Date().toISOString().slice(0,10)+'.csv';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),5000);toast('CSV exported')}
+ const b=new Blob(['\ufeff'+lines.join('\r\n')],{type:'text/csv'}),a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='loop-calibration-'+new Date().toISOString().slice(0,10)+'.csv';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),5000);toast('CSV exported');triggerHaptic('success')}
 
 /* ---------- Pt100 (IEC 60751) ---------- */
 function rtdT(R,R0){const A=3.9083e-3,B=-5.775e-7,C=-4.183e-12;let t=(R/R0-1)/A;
@@ -89,8 +103,8 @@ function satProgress(){const t=document.querySelectorAll('.satchk').length,c=doc
 function renderSat(){const s=satGet();let i=0;
  const body=SAT_ITEMS.map(([g,items])=>'<h3 style="margin-top:12px">'+g+'</h3>'+items.map(t=>{const id='s'+(i++);return '<label class="chk"><input type="checkbox" class="satchk" id="'+id+'"'+(s[id]?' checked':'')+'><span>'+t+'</span></label>'}).join('')).join('');
  $('#view-sat').insertAdjacentHTML('beforeend','<article class="card"><h3>Interactive SAT checklist (20 steps)</h3><div class="satmeta"><div><label>Tank / loop reference</label><input id="satRef" type="text" placeholder="TK-101 / LT-101"></div><div><label>Engineer</label><input id="satEng" type="text"></div></div><div id="satProg" class="out"></div>'+body+'<div class="row"><button id="satReset">Reset Checklist</button><button id="satExp">Export SAT Report</button></div></article>');
- $('#view-sat').addEventListener('change',e=>{if(!e.target.classList.contains('satchk'))return;const o=satGet();if(e.target.checked)o[e.target.id]=1;else delete o[e.target.id];satSet(o);satProgress()});
- $('#satExp').onclick=satExport;$('#satReset').onclick=()=>{if(confirm('Reset the whole SAT checklist?')){satSet({});document.querySelectorAll('.satchk').forEach(c=>c.checked=false);satProgress()}};satProgress()}
+ $('#view-sat').addEventListener('change',e=>{if(!e.target.classList.contains('satchk'))return;const o=satGet();if(e.target.checked)o[e.target.id]=1;else delete o[e.target.id];satSet(o);satProgress();triggerHaptic(document.querySelectorAll('.satchk').length===document.querySelectorAll('.satchk:checked').length?'success':'light')});
+ $('#satExp').onclick=satExport;$('#satReset').onclick=()=>{if(confirm('Reset the whole SAT checklist?')){triggerHaptic('warning');satSet({});document.querySelectorAll('.satchk').forEach(c=>c.checked=false);satProgress()}};satProgress()}
 
 /* ---------- Modbus exception decoder & RS-485 guide ---------- */
 const MBX={
@@ -120,7 +134,7 @@ function drawTank(){const box=$('#tankBox');if(!box)return;const sph=$('#shape')
  box.firstChild.setAttribute('aria-label','Tank level '+pct.toFixed(0)+' percent');
  const R=D/2,V=sph?Math.PI*h*h*(3*R-h)/3:Math.PI/4*D*D*h;
  const st=pct>=al.HH?['HH alarm','bad']:pct>=al.H?['H alarm','warn']:pct<=al.LL?['LL alarm','bad']:pct<=al.L?['L alarm','warn']:['Normal',''];
- $('#tankInfo').className='out '+st[1];$('#tankInfo').innerHTML=`<b>${st[0]}</b><br>Level ${h.toFixed(2)} m of ${H.toFixed(2)} m (${pct.toFixed(1)}%)<br>Gross volume ${V.toFixed(1)} m³`}
+ $('#tankInfo').className='out '+st[1];if(window._tk!==undefined&&window._tk!==st[0]&&st[1]==='bad')triggerHaptic('warning');window._tk=st[0];$('#tankInfo').innerHTML=`<b>${st[0]}</b><br>Level ${h.toFixed(2)} m of ${H.toFixed(2)} m (${pct.toFixed(1)}%)<br>Gross volume ${V.toFixed(1)} m³`}
 
 /* ---------- Input persistence ---------- */
 const PKEY='agacInputs';
