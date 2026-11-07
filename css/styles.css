@@ -87,3 +87,8 @@ pre{overflow-x:auto;margin:8px 0 0;padding:10px;background:var(--bg-primary);bor
 .tank2{display:block;margin:0 auto;max-width:340px;width:100%}.tank2 .lvl{fill:var(--accent-cyan)}
 .al{stroke-width:2}.al.crit{stroke:#ef4444}.al.warn{stroke:#f59e0b;stroke-dasharray:6 3}
 [data-theme=sun] .tank2 .lvl{fill:#888}[data-theme=sun] .al.crit,[data-theme=sun] .al.warn{stroke:#000}
+
+.tw{overflow-x:auto}table.cal td,table.cal th{border-bottom:var(--bw) solid var(--border-color);vertical-align:top}
+.tank2 .lvl{transition:transform .8s ease}
+.istep{display:flex;gap:12px;align-items:flex-start;margin:12px 0}.istep svg{flex:none;width:56px;height:56px}.istep p{margin:0}
+.satmeta{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px}
