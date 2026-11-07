@@ -1,175 +1,934 @@
-/* ---------- Haptics ---------- */
+/* ==========================================================================
+   AGAC SCADA FIELD HANDBOOK - CALCULATORS, TOOLS & SAT MODULE
+   ========================================================================== */
+
+/* ---------- Haptic Feedback Engine ---------- */
 function triggerHaptic(type = 'light') {
   if ('vibrate' in navigator) {
     if (type === 'light') navigator.vibrate(10);
     else if (type === 'success') navigator.vibrate([10, 30, 15]);
     else if (type === 'warning') navigator.vibrate([30, 50, 30]);
   } else if (!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches)) {
-    // iOS Safari has no Vibration API; a hidden switch toggle gives a tick on iOS 17.4+
-    iosTick();
-    if (type !== 'light') setTimeout(iosTick, 70);
+    try {
+      if (!window._hx) {
+        window._hx = document.createElement('label');
+        window._hx.setAttribute('aria-hidden', 'true');
+        window._hx.style.display = 'none';
+        const inp = document.createElement('input');
+        inp.type = 'checkbox';
+        inp.setAttribute('switch', '');
+        window._hx.appendChild(inp);
+        document.body.appendChild(window._hx);
+      }
+      const c = window._hx.querySelector('input');
+      c.checked = !c.checked;
+    } catch (_) {}
   }
 }
-let _hx;
-function iosTick(){try{if(!_hx){_hx=document.createElement('label');_hx.setAttribute('aria-hidden','true');_hx.style.cssText='position:fixed;left:-9999px;top:0;opacity:0;pointer-events:none';_hx.innerHTML='<input type="checkbox" switch>';document.body.appendChild(_hx)}_hx.click()}catch(_){}}
-const $=(s,r=document)=>r.querySelector(s),n=id=>parseFloat($('#'+id).value);
-function ne43(m){if(isNaN(m))return['Enter a value','warn',''];if(m<3.6)return['Wire break / fault','bad','🚨 Broken wire, loose terminal screw, or dead transmitter power.'];if(m<3.8)return['Under-range (NE43)','warn','⚠️ Sensor drift below zero point or calibration offset.'];if(m<=20.5)return['Normal','ok','✅ Normal running condition.'];if(m<=21)return['Over-range (NE43)','warn','⚠️ Sensor pegging above maximum span or internal electronics fault.'];return['Fault (over 21 mA)','bad','⚠️ Sensor pegging above maximum span or internal electronics fault.']}
-function mAcalc(){const m=n('ma'),lo=n('lo'),hi=n('hi');const eu=lo+(m-4)/16*(hi-lo),[s,c,x]=ne43(m);
- $('#maOut').className='out '+c;if(c==='bad'&&window._ne!=='bad')triggerHaptic('warning');window._ne=c;$('#maOut').innerHTML=`<b>${s}</b><br>${x}<br>Value: ${eu.toFixed(2)} (${((m-4)/16*100).toFixed(1)}% of span)`}
-function sgFromAPI(a){return 141.5/(a+131.5)}
-const PRESETS={
- diesel:{shape:'cyl',dia:20,thgt:12,sg:0.84,temp:30,lvl:7.2},
- fuel:{shape:'cyl',dia:30,thgt:14,sg:0.88,temp:35,lvl:8.4},
- water:{shape:'cyl',dia:15,thgt:10,sg:1,temp:25,lvl:6},
- level:{lo:0,hi:15},
- pressure:{lo:0,hi:10}};
-function applyPreset(k){const p=PRESETS[k];if(!p)return;triggerHaptic('light');
- for(const id in p){const e=$('#'+id);if(!e)continue;e.value=p[id];e.dispatchEvent(new Event(e.tagName==='SELECT'?'change':'input',{bubbles:true}))}
- try{volCalc();drawTank();mAcalc()}catch(_){}toast('Preset applied')}
-const clampSG=v=>{let x=Math.abs(parseFloat(v));if(!isFinite(x))x=0.85;return Math.min(2,Math.max(0.5,x))};
-const clampAlpha=v=>{let x=Math.abs(parseFloat(v));if(!isFinite(x))x=0.0008;return Math.min(0.0025,Math.max(0.0001,x))};
-function volCalc(){const t=$('#shape').value,D=n('dia'),h=n('lvl'),T=n('temp'),sg=clampSG($('#sg').value),a=clampAlpha($('#alpha').value);let V;
- if(t==='cyl')V=Math.PI/4*D*D*h;else{const R=D/2;V=Math.PI*h*h*(3*R-h)/3}
- const vcf=1-a*(T-15),rho=sg*1000*vcf,V15=V*vcf,mt=V*rho/1000;
- $('#volOut').className='out';$('#volOut').innerHTML=`Gross volume: ${V.toFixed(2)} m³<br>Approx. standard volume @15°C: ${V15.toFixed(2)} m³<br>Density @${T}°C: ${rho.toFixed(1)} kg/m³<br>Mass: ${mt.toFixed(2)} t<br><small>Linear expansion estimate only. Use API MPMS 11.1 tables for custody transfer.</small>`}
-function overfill(){const A=Math.PI/4*Math.pow(n('odia'),2),fill=n('rate'),gap=n('gap'),resp=n('resp');const tmin=gap*A/fill*60,margin=tmin-resp;
- $('#ofOut').className='out '+(margin<0?'bad':margin<5?'warn':'');$('#ofOut').innerHTML=`Time from HH to overflow: ${tmin.toFixed(1)} min<br>Required response: ${resp} min<br>Margin: <b>${margin.toFixed(1)} min</b>${margin<0?'<br>Insufficient margin: lower HH setpoint or fill rate.':''}`}
-function apiCalc(){const g=sgFromAPI(n('api'));$('#apiOut').className='out';$('#apiOut').innerHTML=`SG @60°F: ${g.toFixed(4)}<br>Density: ${(g*999.0).toFixed(1)} kg/m³ (approx.)`}
-let proofT=null;
-let proofEnd=0;
-function proofTick(){const o=$('#ptOut'),s=Math.max(0,Math.ceil((proofEnd-Date.now())/1000));o.textContent=`Proof test countdown: ${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;if(s<=0){clearInterval(proofT);proofT=null;o.textContent='Time elapsed: record result';if(navigator.vibrate)navigator.vibrate([300,100,300])}}
-function proof(){clearInterval(proofT);const m=n('pt');if(!(m>0)){toast('Enter minutes above 0');return}triggerHaptic('light');proofEnd=Date.now()+m*60000;proofTick();proofT=setInterval(proofTick,250)}
-document.addEventListener('visibilitychange',()=>{if(proofT&&!document.hidden)proofTick()});addEventListener('pageshow',()=>{if(proofT)proofTick()});
-function tankSvg(p){return `<svg class="tank" viewBox="0 0 100 130" role="img" aria-label="Tank level ${p}%"><rect x="15" y="10" width="70" height="110" rx="6" fill="none" stroke="currentColor" stroke-width="4"/><rect class="lvl" id="lv" x="19" y="${116-1.04*p}" width="62" height="${1.04*p}"/><text x="50" y="70" text-anchor="middle" fill="currentColor" font-size="16" font-weight="700" id="lvt">${p}%</text></svg>`}
-function renderCalc(){const v=$('#view-calc');v.innerHTML=`<h2>Interactive Field Calculators</h2>
-<div class="card"><h3>4–20 mA loop (NAMUR NE43)</h3><div class="chips presets"><button type="button" class="chip" data-preset="level">Level: 0–15m</button><button type="button" class="chip" data-preset="pressure">Pressure: 0–10 bar</button></div><div class="grid"><div><label>mA</label><input id="ma" type="number" step="any" inputmode="decimal" value="12"><small class="hint">Standard electrical current signal sent by tank sensors to the PLC</small></div><div><label>Range low</label><input id="lo" type="number" step="any" inputmode="decimal" value="0"></div></div><label>Range high</label><input id="hi" type="number" step="any" inputmode="decimal" value="20"><div id="maOut" class="out"></div></div>
-<div class="card"><h3>Tank volume & mass</h3><div class="chips presets"><button type="button" class="chip" data-preset="diesel">Diesel Tank (20m x 12m)</button><button type="button" class="chip" data-preset="fuel">Fuel Oil Tank (30m x 14m)</button><button type="button" class="chip" data-preset="water">Water Storage (15m x 10m)</button></div><label>Shape</label><select id="shape"><option value="cyl">Vertical cylinder</option><option value="sph">Sphere</option></select><div class="grid"><div><label>Diameter (m)</label><input id="dia" type="number" step="any" inputmode="decimal" value="30"></div><div><label>Level (m)</label><input id="lvl" type="number" step="any" inputmode="decimal" value="10"></div><div><label>Temp (°C)</label><input id="temp" type="number" step="any" inputmode="decimal" value="35"></div><div><label>SG @15°C</label><input id="sg" type="number" step="any" inputmode="decimal" min="0.5" max="2" value="0.85"><small class="hint">Liquid density relative to water (Diesel: 0.84, Heavy Fuel: 0.92, Water: 1.0)</small></div><div><label>Tank height (m, cylinder)</label><input id="thgt" type="number" step="any" inputmode="decimal" value="14"></div></div><div id="tankBox"></div><div id="tankInfo" class="out"></div><details class="alarmset"><summary>Tank alarm levels (LL, L, H, HH %)</summary><div class="grid"><div><label>LL (%)</label><input id="aLL" type="number" step="any" inputmode="decimal" value="5"></div><div><label>L (%)</label><input id="aL" type="number" step="any" inputmode="decimal" value="10"></div><div><label>H (%)</label><input id="aH" type="number" step="any" inputmode="decimal" value="85"></div><div><label>HH (%)</label><input id="aHH" type="number" step="any" inputmode="decimal" value="92"></div></div></details><label>Expansion coefficient (1/°C, 0.0001 to 0.0025)</label><input id="alpha" type="number" step="any" inputmode="decimal" min="0.0001" max="0.0025" value="0.0008"><label>Or API gravity to SG</label><input id="api" type="number" step="any" inputmode="decimal" value="35"><button id="apiBtn" style="margin-top:6px">Convert API</button><div id="apiOut" class="out"></div><div id="volOut" class="out"></div></div>
-<div class="card"><h3>HH overfill response time</h3><div class="grid"><div><label>Diameter (m)</label><input id="odia" type="number" step="any" inputmode="decimal" value="30"></div><div><label>Max fill (m³/h)</label><input id="rate" type="number" step="any" inputmode="decimal" value="1500"></div><div><label>HH to overflow (m)</label><input id="gap" type="number" step="any" inputmode="decimal" value="0.6"><small class="hint">Safety buffer height between emergency trip point and tank top lip</small></div><div><label>Required response (min)</label><input id="resp" type="number" step="any" inputmode="decimal" value="10"></div></div><div id="ofOut" class="out"></div></div>
-<div class="card"><h3>Proof-test timer</h3><label>Minutes</label><input id="pt" type="number" step="any" inputmode="decimal" value="15"><button id="ptBtn" style="margin-top:6px">Start</button><div id="ptOut" class="out">Not started</div></div>`;
- v.addEventListener('input',e=>{const i=e.target.id;if(i==='sg'&&e.target.value.indexOf('-')>=0)e.target.value=e.target.value.replace(/-/g,'');if(['ma','lo','hi'].includes(i))mAcalc();else if(['thgt','aLL','aL','aH','aHH'].includes(i)){drawTank()}else if(['shape','dia','lvl','temp','sg','alpha'].includes(i)){volCalc();drawTank()}else if(['odia','rate','gap','resp'].includes(i))overfill()});
- v.addEventListener('change',e=>{if(e.target.id==='alpha'){e.target.value=clampAlpha(e.target.value);volCalc();drawTank()}else if(e.target.id==='sg'){e.target.value=clampSG(e.target.value);volCalc();drawTank()}});
- v.addEventListener('click',e=>{const b=e.target.closest('[data-preset]');if(b)applyPreset(b.dataset.preset)});
- $('#shape').onchange=()=>{volCalc();drawTank()};$('#apiBtn').onclick=()=>{apiCalc();$('#sg').value=clampSG(sgFromAPI(n('api'))).toFixed(4);volCalc()};$('#ptBtn').onclick=proof;mAcalc();volCalc();drawTank();overfill();renderTools();renderSat();renderPt100();renderModbus();pRestore()}
 
-/* ---------- Field tools ---------- */
-const NUM='type="number" step="any" inputmode="decimal"';
-const store={get(){try{return JSON.parse(localStorage.getItem('calRecords')||'[]')}catch(_){return[]}},set(v){try{localStorage.setItem('calRecords',JSON.stringify(v));return true}catch(_){return false}}};
-const PTS=[0,25,50,75,100];
-function calRows(){const lo=n('clo'),hi=n('chi'),tol=n('ctol');return PTS.map((p,i)=>{const exp=4+16*p/100,m=Math.min(25,Math.max(0,parseFloat($('#m'+i).value))),err=isNaN(m)?null:(m-exp)/16*100;
- $('#e'+i).textContent=err===null?'-':err.toFixed(3)+'%';$('#e'+i).style.fontWeight=700;$('#e'+i).style.color=err!==null&&Math.abs(err)>tol?'#ef4444':'';return{p,eu:+(lo+p/100*(hi-lo)).toFixed(3),exp:+exp.toFixed(3),meas:isNaN(m)?null:m,err}})}
-function listRecords(){const r=store.get();$('#calList').innerHTML=r.length?r.map((x,i)=>({x,i})).reverse().map(({x,i})=>`<div class="out rec ${x.pass?'':'bad'}"><div><b>${x.tag||'No tag'}</b> ${x.pass?'PASS':'FAIL'}<br>${new Date(x.ts).toLocaleString()} | max error ${x.maxErr.toFixed(3)}% (tol ${x.tol}%)</div><button class="del" data-i="${i}" aria-label="Delete record ${x.tag||''}">✕</button></div>`).join(''):'<div class="out">No saved records</div>'}
-function saveCal(){const rows=calRows();const tagV=$('#ctag').value.trim();if(!tagV){triggerHaptic('warning');dlg('<h3>Instrument Tag required</h3><p>Please enter an Instrument Tag (e.g. LT-101) before saving.</p>');return}
- if(rows.some(r=>r.meas===null)){toast('Enter all 5 measured values');return}
- const tg=tagV;
- const tol=n('ctol'),maxErr=Math.max(...rows.map(r=>Math.abs(r.err))),rec={ts:Date.now(),tag:tg,lo:n('clo'),hi:n('chi'),unit:$('#cunit').value,tol,rows,maxErr,pass:maxErr<=tol};
- const all=store.get();all.push(rec);toast(store.set(all)?'Calibration saved':'Storage unavailable');triggerHaptic(rec.pass?'success':'warning');listRecords()}
-let swT0=null,swRaf=0,swEl=0;
-function swTick(){swEl=performance.now()-swT0;$('#swOut').textContent=(swEl/1000).toFixed(3)+' s';swRaf=requestAnimationFrame(swTick)}
-function swToggle(){if(swT0===null){triggerHaptic('light');swT0=performance.now();$('#swBtn').textContent='Stop';$('#swRes').textContent='Running…';$('#swRes').className='out';swTick()}
- else{cancelAnimationFrame(swRaf);swEl=performance.now()-swT0;swT0=null;$('#swBtn').textContent='Start';$('#swOut').textContent=(swEl/1000).toFixed(3)+' s';swCheck()}}
-function swCheck(){const tg=n('swTarget')*1000;if(isNaN(tg)||!swEl)return;const ok=swEl<=tg;triggerHaptic(ok?'success':'warning');$('#swRes').className='out '+(ok?'':'bad');$('#swRes').innerHTML=`<b>${ok?'PASS':'FAIL'}</b>: ${Math.round(swEl)} ms vs target ${Math.round(tg)} ms (${ok?'-':'+'}${Math.abs(Math.round(swEl-tg))} ms)`}
-function swReset(){cancelAnimationFrame(swRaf);swT0=null;swEl=0;$('#swBtn').textContent='Start';$('#swOut').textContent='0.000 s';$('#swRes').className='out';$('#swRes').textContent='Ready'}
-function reg(id){let v=$('#'+id).value.trim(),f=$('#rfmt').value;if(!v)return NaN;const x=f==='hex'?(/^(0x)?[0-9a-f]{1,4}$/i.test(v)?parseInt(v.replace(/^0x/i,''),16):NaN):(/^\d{1,5}$/.test(v)?parseInt(v,10):NaN);return x>=0&&x<=65535?x:NaN}
-function toFloat(a,b,bs,ws){let w=ws?[b,a]:[a,b];if(bs)w=w.map(x=>((x&255)<<8)|(x>>8));const dv=new DataView(new ArrayBuffer(4));dv.setUint16(0,w[0]);dv.setUint16(2,w[1]);return{f:dv.getFloat32(0),hex:'0x'+w.map(x=>x.toString(16).padStart(4,'0')).join('').toUpperCase()}}
-function fpCalc(){const a=reg('r1'),b=reg('r2'),o=$('#fpOut');if(isNaN(a)||isNaN(b)){o.className='out bad';o.textContent='Enter two valid 16-bit values (0-65535 or 0000-FFFF)';$('#fpAll').innerHTML='';return}
- const r=toFloat(a,b,$('#bs').checked,$('#ws').checked);o.className='out';o.innerHTML=`<b>${Number.isFinite(r.f)?r.f.toPrecision(8):r.f}</b><br>Assembled bytes: ${r.hex}`;
- $('#fpAll').innerHTML='<table class="cal"><tr><th>Order</th><th>Value</th></tr>'+[['ABCD',0,0],['CDAB (word swap)',0,1],['BADC (byte swap)',1,0],['DCBA (both)',1,1]].map(([l,x,y])=>`<tr><td>${l}</td><td>${toFloat(a,b,!!x,!!y).f.toPrecision(7)}</td></tr>`).join('')+'</table>'}
-function renderTools(){const v=$('#view-tools');
- v.innerHTML=`<h2>Field Tools</h2>
-<div class="card"><h3>Loop calibrator (5-point)</h3><div class="grid"><div><label>Tag</label><input id="ctag" type="text" placeholder="LT-101"></div><div><label>Unit</label><input id="cunit" type="text" value="m"></div><div><label>Range low</label><input id="clo" ${NUM} value="0"></div><div><label>Range high</label><input id="chi" ${NUM} value="20"></div></div><label>Tolerance (% of span)</label><input id="ctol" ${NUM} value="0.25">
-<div class="row"><button type="button" id="calFill">Fill Ideal (Pass)</button></div><small class="hint">Loads 4, 8, 12, 16 and 20 mA so you can see what a 0.0% error PASS report looks like.</small>
-<table class="cal"><tr><th>%</th><th>EU</th><th>Exp mA</th><th>Measured</th><th>Error</th></tr>${PTS.map((p,i)=>`<tr><td>${p}</td><td id="u${i}"></td><td>${(4+16*p/100).toFixed(2)}</td><td><input id="m${i}" class="cm" ${NUM} min="0" max="25"></td><td id="e${i}">-</td></tr>`).join('')}</table>
-<div class="legend"><small class="hint"><b>EU</b>: Engineering Units (the real physical reading: meters, bar, °C)</small><small class="hint"><b>Exp mA</b>: The theoretical milliamp signal the sensor should generate</small></div>
-<div class="row"><button id="calSave">Save record</button><button id="calClear">Clear records</button><button id="calCsv">Export to CSV</button></div><div id="calList"></div></div>
-<div class="card"><h3>ESD valve stroke stopwatch</h3><div class="big" id="swOut">0.000 s</div><label>Target stroke time (s)</label><input id="swTarget" ${NUM} value="30"><div class="row"><button id="swBtn">Start</button><button id="swReset">Reset</button></div><div id="swRes" class="out">Ready</div></div>
-<div class="card"><h3>Modbus register to IEEE 754 float</h3><small class="hint">Field transmitters send 32-bit analog numbers split across two 16-bit Modbus registers. Use Word/Byte swap if the value displays an impossible exponent.</small><label>Input format</label><select id="rfmt"><option value="hex">Hex</option><option value="dec">Decimal</option></select><div class="grid"><div><label>Register 1</label><input id="r1" type="text" inputmode="text" autocapitalize="characters" value="41C8"></div><div><label>Register 2</label><input id="r2" type="text" inputmode="text" autocapitalize="characters" value="0000"></div></div><label class="chk"><input id="bs" type="checkbox"> Byte swap</label><label class="chk"><input id="ws" type="checkbox"> Word swap</label><div id="fpOut" class="out"></div><div id="fpAll"></div></div>`;
- const ux=()=>{const lo=n('clo'),hi=n('chi');PTS.forEach((p,i)=>$('#u'+i).textContent=(lo+p/100*(hi-lo)).toFixed(2))};
- v.addEventListener('input',e=>{const i=e.target.id;if(e.target.classList.contains('cm')){let x=e.target.value;if(x.indexOf('-')>=0)x=x.replace(/-/g,'');if(x!==''&&parseFloat(x)>25)x='25';if(x!==e.target.value)e.target.value=x}if(['clo','chi'].includes(i))ux();if(e.target.classList.contains('cm')||['clo','chi','ctol'].includes(i))calRows();if(i==='swTarget'&&swT0===null)swCheck();if((i==='r1'||i==='r2')&&$('#rfmt').value==='hex'){const c=e.target.value.replace(/\s+/g,'').replace(/^0x/i,'').replace(/[^0-9a-f]/gi,'').toUpperCase().slice(0,4);if(c!==e.target.value)e.target.value=c}if(['r1','r2','bs','ws'].includes(i))fpCalc()});
- v.addEventListener('focusout',e=>{const i=e.target.id;if((i==='r1'||i==='r2')&&$('#rfmt').value==='hex'){const x=e.target.value;if(x.length>=1&&x.length<4)e.target.value=x.padStart(4,'0');fpCalc()}});
- v.addEventListener('change',e=>{if(e.target.classList.contains('cm')&&e.target.value!==''){e.target.value=Math.min(25,Math.max(0,Math.abs(parseFloat(e.target.value)||0))).toFixed(2);calRows()}});
- $('#rfmt').onchange=()=>{const hex=$('#rfmt').value==='hex';[ 'r1','r2'].forEach(id=>{const e=$('#'+id),x=parseInt(e.value,hex?10:16);if(!isNaN(x))e.value=hex?x.toString(16).toUpperCase().padStart(4,'0'):parseInt(e.value,16)});fpCalc()};
- $('#calFill').onclick=()=>{PTS.forEach((p,i)=>{const e=$('#m'+i);e.value=(4+16*p/100).toFixed(2);e.dispatchEvent(new Event('input',{bubbles:true}))});calRows();triggerHaptic('success')};$('#calSave').onclick=saveCal;$('#calList').onclick=e=>{const b=e.target.closest('.del');if(!b||!confirm('Delete this record?'))return;triggerHaptic('warning');const a=store.get();a.splice(+b.dataset.i,1);store.set(a);listRecords()};$('#calCsv').onclick=csvCal;$('#calClear').onclick=()=>{if(confirm('Delete all saved calibration records?')){triggerHaptic('warning');store.set([]);listRecords()}};
- $('#swBtn').onclick=swToggle;$('#swReset').onclick=swReset;ux();listRecords();fpCalc()}
+const $ = s => document.querySelector(s);
+const $$ = s => document.querySelectorAll(s);
+const n = id => {
+  const el = document.getElementById(id);
+  return el ? parseFloat(el.value) || 0 : 0;
+};
 
-/* ---------- CSV export ---------- */
-function csvCal(){const r=store.get();if(!r.length){toast('No records to export');return}
- const q=v=>'"'+String(v==null?'':v).replace(/"/g,'""')+'"';
- const head=['Timestamp','Tag','Unit','Range low','Range high','Tolerance %','Result','Max error %',...PTS.flatMap(p=>['Measured mA @'+p+'%','Error % @'+p+'%'])];
- const lines=[head.map(q).join(',')].concat(r.map(x=>[new Date(x.ts).toISOString(),x.tag,x.unit,x.lo,x.hi,x.tol,x.pass?'PASS':'FAIL',x.maxErr.toFixed(4),...x.rows.flatMap(w=>[w.meas,w.err===null?'':w.err.toFixed(4)])].map(q).join(',')));
- const b=new Blob(['\ufeff'+lines.join('\r\n')],{type:'text/csv'}),a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='loop-calibration-'+new Date().toISOString().slice(0,10)+'.csv';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),5000);toast('CSV exported');triggerHaptic('success')}
+const clampSG = v => {
+  let val = Math.abs(parseFloat(v));
+  if (isNaN(val) || val <= 0) return 0.85;
+  return Math.max(0.50, Math.min(2.00, val));
+};
 
-/* ---------- Pt100 (IEC 60751) ---------- */
-function rtdT(R,R0){const A=3.9083e-3,B=-5.775e-7,C=-4.183e-12;let t=(R/R0-1)/A;
- for(let i=0;i<40;i++){const f=t<0?R0*(1+A*t+B*t*t+C*(t-100)*t*t*t):R0*(1+A*t+B*t*t),d=t<0?R0*(A+2*B*t+C*(4*t*t*t-300*t*t)):R0*(A+2*B*t),nt=t-(f-R)/d;if(Math.abs(nt-t)<1e-9){t=nt;break}t=nt}return t}
-function rtdCalc(){const R=n('rtdR'),R0=n('rtdR0'),o=$('#rtdOut');if(!(R>0)||!(R0>0)){o.className='out bad';o.textContent='Enter resistance and R0 above 0 ohm';return}
- const t=rtdT(R,R0);if(!isFinite(t)||t<-200.5||t>850.5){o.className='out bad';o.innerHTML=`Outside IEC 60751 range (-200 to 850 °C).<br>Check for open sensor (very high ohms) or short (very low ohms).`;return}
- o.className='out';o.innerHTML=`<b>${t.toFixed(2)} °C</b> (${(t*9/5+32).toFixed(2)} °F)<br>Sensitivity near 0 °C: ${(R0*3.9083e-3).toFixed(3)} ohm/°C`}
-function renderPt100(){$('#view-tools').insertAdjacentHTML('beforeend',`<div class="card"><h3>Pt100 RTD ohms to °C (IEC 60751)</h3><small class="hint">Measures sensor resistance: 100.00 Ω = 0.0 °C (freezing), 138.51 Ω = 100.0 °C (boiling).</small><div class="grid"><div><label>Resistance (ohm)</label><input id="rtdR" ${NUM} value="138.51"></div><div><label>R0 at 0 °C (ohm)</label><input id="rtdR0" ${NUM} value="100"></div></div><div id="rtdOut" class="out"></div><small>Callendar-Van Dusen, alpha 0.00385. Use R0 = 1000 for Pt1000. Subtract lead resistance for 2-wire sensors first.</small></div>`);
- $('#view-tools').addEventListener('input',e=>{if(e.target.id==='rtdR'||e.target.id==='rtdR0')rtdCalc()});rtdCalc()}
+const clampAlpha = v => {
+  let val = Math.abs(parseFloat(v));
+  if (isNaN(val) || val <= 0) return 0.0008;
+  return Math.max(0.0001, Math.min(0.0025, val));
+};
 
-/* ---------- Interactive SAT checklist ---------- */
-const SAT_ITEMS=[
-['Cold Loop',['Tag, range, units and loop sheet match the as-built P&ID','Cable continuity, insulation resistance and shield earthing checked','IS barrier parameters (Uo/Io/Po vs Ui/Ii/Pi) and earth verified','Loop supply voltage and loop resistance within device limits','HART / fieldbus communication and configuration read back OK']],
-['Hot Loop (0-100%)',['Inject or simulate 0, 25, 50, 75 and 100% and record as-found / as-left','HMI value and units match the field reading at all five points','LL, L, H and HH alarm setpoints and deadbands tested','NE43 under-range, over-range and wire-break faults annunciate with bad quality','Trend, historian and tag naming verified in SCADA']],
-['Safety Interlock / ESD',['Independent HH switch trips with no PLC or SCADA involvement','ESD valve closes on HH trip and stroke time is recorded against target','Hardwired ESD overrides local and remote MOV commands','Bypass is key-locked, alarmed, logged and time-limited','Fail-safe state confirmed on loss of power, air and communications']],
-['ATG Dip Verification',['Reference (datum) height confirmed with a calibrated dip tape','Radar / servo reading compared to manual dip at 3 or more levels','Water dip and free-water check recorded','Average temperature compared to a spot / thief reading','Tank table version, corrections and density configuration documented']]];
-const satGet=()=>{try{return JSON.parse(localStorage.getItem('satChecks2')||'{}')}catch(_){return{}}};
-const satSet=o=>{try{localStorage.setItem('satChecks2',JSON.stringify(o))}catch(_){}};
-function satProgress(){const t=document.querySelectorAll('.satchk').length,c=document.querySelectorAll('.satchk:checked').length;$('#satProg').textContent=c+' of '+t+' complete';$('#satProg').className='out '+(c===t?'':'warn')}
-function renderSat(){const s=satGet();let i=0;
- const sv=$('#view-sat'),old=Array.from(sv.children).filter(c=>c.classList&&c.classList.contains('card'));
- if(old.length&&!sv.querySelector('details.guide-acc')){const det=document.createElement('details');det.className='card guide-acc';det.innerHTML='<summary>SAT Guidelines</summary>';old.forEach(c=>{c.classList.remove('card');c.classList.add('sub');det.appendChild(c)});const h2=sv.querySelector('h2');if(h2)h2.after(det);else sv.prepend(det)}
- const body=SAT_ITEMS.map(([g,items])=>'<h3 style="margin-top:12px">'+g+'</h3>'+items.map(t=>{const id='s'+(i++);return '<label class="chk"><input type="checkbox" class="satchk" id="'+id+'"'+(s[id]?' checked':'')+'><span>'+t+'</span></label>'}).join('')).join('');
- $('#view-sat').insertAdjacentHTML('beforeend','<article class="card"><h3>Interactive SAT checklist (20 steps)</h3><div class="satmeta"><div><label>Tank / loop reference</label><input id="satRef" type="text" placeholder="TK-101 / LT-101"></div><div><label>Engineer</label><input id="satEng" type="text"></div></div><div id="satProg" class="out"></div>'+body+'<div class="row"><button id="satReset">Reset Checklist</button><button id="satExp">Export SAT Report</button></div></article>');
- $('#view-sat').addEventListener('change',e=>{if(!e.target.classList.contains('satchk'))return;const o=satGet();if(e.target.checked)o[e.target.id]=1;else delete o[e.target.id];satSet(o);satProgress();triggerHaptic(document.querySelectorAll('.satchk').length===document.querySelectorAll('.satchk:checked').length?'success':'light')});
- $('#satExp').onclick=satExport;$('#satReset').onclick=()=>{if(confirm('Reset the whole SAT checklist?')){triggerHaptic('warning');satSet({});document.querySelectorAll('.satchk').forEach(c=>c.checked=false);satProgress()}};satProgress()}
+const sgFromAPI = api => 141.5 / (Math.abs(parseFloat(api) || 10) + 131.5);
 
-/* ---------- Modbus exception decoder & RS-485 guide ---------- */
-const MBX={
-'01':['Illegal Function','The slave does not support this function code (for example FC04 on a holding-only map, or a write to a read-only device).','Check the vendor register map for supported FCs. Try FC03 instead of FC04 (or the reverse); use FC16 instead of FC06 if the device requires it.'],
-'02':['Illegal Data Address','The register or coil is outside the slave map. Most common cause is 0-based vs 1-based addressing (offset of +1 or -1), or including the 4xxxx prefix in the address.','Try the address minus 1, then plus 1. Strip the 4xxxx prefix (40001 = offset 0). Make sure a block read does not run past the last valid register.'],
-'03':['Illegal Data Value','The quantity or value is invalid: too many registers in one request (over 125 for FC03/04, over 123 for FC16), a write value out of range, or a bad coil value.','Reduce the read count. Match the data type and range in the manual. Write 32-bit values with one FC16 request covering both registers.'],
-'04':['Slave Device Failure','An unrecoverable error occurred inside the slave while handling a valid request (device fault, sensor failure, internal gateway error).','Check device diagnostics and LEDs, the sensor and configuration. Power-cycle if allowed, then escalate to the vendor.'],
-'05':['Acknowledge','The slave accepted the request but needs a long time to process it.','Poll later for completion. Do not resend the request repeatedly.'],
-'06':['Slave Device Busy','The slave is busy with a long-running command.','Retry after a delay, lower the poll rate and lengthen the inter-request gap.'],
-'0A':['Gateway Path Unavailable','The gateway cannot route to the target (routing table, serial port or unit ID mapping is wrong).','Check gateway port settings and the unit ID mapping.'],
-'0B':['Gateway Target Failed to Respond','The gateway forwarded the request but nothing answered on the serial side.','Check slave ID, baud/parity/stop bits, wiring and power at the target device.']};
-function mbxShow(){const x=MBX[$('#mbx').value];$('#mbxOut').className='out warn';$('#mbxOut').innerHTML='<b>'+x[0]+'</b><br><b>Likely cause:</b> '+x[1]+'<br><b>Fix:</b> '+x[2]}
-function renderModbus(){$('#view-tools').insertAdjacentHTML('beforeend',`<div class="card"><h3>Modbus exception decoder</h3><label>Exception code</label><select id="mbx">${Object.keys(MBX).map(k=>`<option value="${k}">${k} - ${MBX[k][0]}</option>`).join('')}</select><div id="mbxOut" class="out"></div></div>
-<div class="card"><h3>RS-485 diagnostic guide</h3><p>No response at all (timeout) is not an exception code. Work through the wiring and settings first:</p><ul><li>A/B polarity: swap the pair if nothing answers (labels differ between vendors).</li><li>120 ohm termination at the two ends of the bus only, with bias resistors at one point.</li><li>Match baud rate, parity and stop bits exactly (8E1 vs 8N2 is a common slip).</li><li>Unique slave ID per device; confirm the unit ID on gateways.</li><li>Daisy-chain topology, no stars; keep within 1200 m and 32 unit loads (fewer with long cable).</li><li>Shield grounded at one end, plus a common reference wire on long runs.</li><li>Address check: try offset -1 / +1 (0-based vs 1-based), and confirm word and byte order for 32-bit values.</li><li>Raise the response timeout and add an inter-request gap for slow devices.</li></ul></div>`);
- $('#mbx').onchange=mbxShow;mbxShow()}
+/* ---------- TAB 1: CALCULATORS ---------- */
 
-/* ---------- Live tank faceplate ---------- */
-function drawTank(){const box=$('#tankBox');if(!box)return;const sph=$('#shape').value==='sph',D=n('dia'),H=sph?D:n('thgt');let h=n('lvl');
- if(!(H>0)||!(D>0)||isNaN(h)){$('#tankInfo').className='out warn';$('#tankInfo').textContent='Enter diameter, height and level';return}
- h=Math.max(0,Math.min(h,H));const pct=h/H*100,al={HH:n('aHH'),H:n('aH'),L:n('aL'),LL:n('aLL')},top=20,bot=240,y=p=>bot-(bot-top)*p/100,x0=sph?20:60,ty=220*(1-pct/100),sig=[sph,al.HH,al.H,al.L,al.LL].join('|');
- const setL=()=>{const e=document.getElementById('tliq');if(e)e.style.transform='translateY('+ty+'px)'};
- if(box.dataset.sig!==sig){
-  const clip=sph?'<circle cx="130" cy="130" r="110"/>':'<rect x="62" y="20" width="136" height="220"/>',frame=sph?'<circle cx="130" cy="130" r="110" fill="none" stroke="currentColor" stroke-width="3"/>':'<rect x="60" y="20" width="140" height="220" rx="6" fill="none" stroke="currentColor" stroke-width="3"/>';
-  const lines=Object.entries(al).filter(([k,v])=>v>=0&&v<=100).map(([k,v])=>`<line class="al ${k==='HH'||k==='LL'?'crit':'warn'}" x1="${x0}" x2="246" y1="${y(v)}" y2="${y(v)}"/><text x="250" y="${y(v)+4}" font-size="11" fill="currentColor">${k} ${v}%</text>`).join('');
-  box.innerHTML=`<svg class="tank2" viewBox="0 0 320 260" role="img"><defs><clipPath id="tclip">${clip}</clipPath></defs><g clip-path="url(#tclip)"><rect id="tliq" class="lvl" x="20" y="20" width="220" height="220" style="transform:translateY(220px)"/></g>${frame}${lines}</svg>`;
-  box.dataset.sig=sig;(window.requestAnimationFrame||setTimeout)(()=>(window.requestAnimationFrame||setTimeout)(setL))}else setL();
- box.firstChild.setAttribute('aria-label','Tank level '+pct.toFixed(0)+' percent');
- const R=D/2,V=sph?Math.PI*h*h*(3*R-h)/3:Math.PI/4*D*D*h;
- const st=pct>=al.HH?['HH alarm','bad']:pct>=al.H?['H alarm','warn']:pct<=al.LL?['LL alarm','bad']:pct<=al.L?['L alarm','warn']:['Normal',''];
- $('#tankInfo').className='out '+st[1];if(window._tk!==undefined&&window._tk!==st[0]&&st[1]==='bad')triggerHaptic('warning');window._tk=st[0];$('#tankInfo').innerHTML=`<b>${st[0]}</b><br>Level ${h.toFixed(2)} m of ${H.toFixed(2)} m (${pct.toFixed(1)}%)<br>Gross volume ${V.toFixed(1)} m³`}
+function ne43(m) {
+  if (isNaN(m)) return ['Enter a signal', 'warn', 'Type a milliamp value between 4 and 20 mA.'];
+  if (m < 3.6) return ['Wire Break / Dead Loop', 'bad', '🚨 Broken cable, blown fuse, or lost DC power.'];
+  if (m < 3.8) return ['Under-range (NE43)', 'warn', '⚠️ Sensor drift below 0% physical zero point.'];
+  if (m <= 20.5) return ['Normal Running Condition', 'ok', '✅ Transmitter is calibrated and operating safely.'];
+  if (m <= 21.0) return ['Over-range (NE43)', 'warn', '⚠️ Tank level or pressure is exceeding rated span.'];
+  return ['Transmitter Electronics Fault', 'bad', '🚨 Hardware error: output current pegged above 21 mA.'];
+}
 
-/* ---------- Input persistence ---------- */
-const PKEY='agacInputs';
-const pGet=()=>{try{return JSON.parse(localStorage.getItem(PKEY)||'{}')}catch(_){return{}}};
-function pSave(e){const t=e.target;if(!t.id||!t.closest||t.classList.contains('satchk')||!t.closest('#view-calc,#view-tools,#view-sat'))return;const o=pGet();o[t.id]=t.type==='checkbox'?t.checked:t.value;try{localStorage.setItem(PKEY,JSON.stringify(o))}catch(_){}}
-document.addEventListener('input',pSave);document.addEventListener('change',pSave);
-function pRestore(){const o=pGet();
- for(const id in o){const el=document.getElementById(id);if(!el||!el.closest('#view-calc,#view-tools,#view-sat'))continue;if(el.type==='checkbox')el.checked=!!o[id];else el.value=o[id]}
- document.querySelectorAll('#view-calc input,#view-tools input,#view-sat input').forEach(el=>{if(el.id&&o[el.id]!==undefined&&el.type!=='checkbox')el.dispatchEvent(new Event('input',{bubbles:true}))});
- {const al=$('#alpha');if(al)al.value=clampAlpha(al.value);const sg=$('#sg');if(sg)sg.value=clampSG(sg.value)}
- [volCalc,drawTank,mbxShow,fpCalc,mAcalc,overfill].forEach(f=>{try{f()}catch(_){}})}
+function mAcalc() {
+  const m = n('ma'), lo = n('lo'), hi = n('hi');
+  const span = hi - lo;
+  const pct = ((m - 4) / 16) * 100;
+  const eu = lo + (pct / 100) * span;
+  const [title, cls, desc] = ne43(m);
 
-/* ---------- SAT report export ---------- */
-function satReport(){const s=satGet(),L=['AGAC TANK FARM SCADA - SAT REPORT','Reference: '+($('#satRef').value||'-'),'Engineer: '+($('#satEng').value||'-'),'Date: '+new Date().toLocaleString(),'Progress: '+document.querySelectorAll('.satchk:checked').length+' of '+document.querySelectorAll('.satchk').length,''];let i=0;
- SAT_ITEMS.forEach(([g,items])=>{L.push(g.toUpperCase());items.forEach(x=>{L.push((s['s'+i]?'[x] ':'[ ] ')+x);i++});L.push('')});L.push('Signature: ______________________');return L.join('\n')}
-function satExport(){const txt=satReport();
- dlg('<h3>SAT report</h3><textarea id="satTxt" readonly style="min-height:240px;font-size:12px">'+txt.replace(/&/g,'&amp;').replace(/</g,'&lt;')+'</textarea><div class="row"><button id="satCp">Copy</button><button id="satDl">Download .txt</button><button id="satSh">Share</button></div>');
- $('#satCp').onclick=async()=>{try{await navigator.clipboard.writeText(txt)}catch(_){$('#satTxt').select();document.execCommand('copy')}toast('Copied')};
- $('#satDl').onclick=()=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([txt],{type:'text/plain'}));a.download='SAT-report-'+new Date().toISOString().slice(0,10)+'.txt';document.body.appendChild(a);a.click();a.remove()};
- $('#satSh').onclick=()=>{if(navigator.share)navigator.share({title:'SAT report',text:txt}).catch(()=>{});else toast('Share not supported, use Copy')}}
+  const out = $('#maOut');
+  if (!out) return;
+  out.className = 'out ' + cls;
+  if (cls === 'bad' && window._ne !== 'bad') triggerHaptic('warning');
+  window._ne = cls;
+
+  out.innerHTML = `
+    <div style="font-weight:700;font-size:1.05rem">${title}</div>
+    <div style="margin:4px 0"><b>Calculated Process Value:</b> ${eu.toFixed(2)} (${pct.toFixed(1)}% of span)</div>
+    <small class="hint">${desc}</small>
+  `;
+}
+
+const PRESETS = {
+  diesel: { shape: 'cyl', dia: 20, thgt: 12, sg: 0.84, temp: 30, lvl: 7.5 },
+  fuel: { shape: 'cyl', dia: 30, thgt: 14, sg: 0.88, temp: 35, lvl: 10.0 },
+  water: { shape: 'cyl', dia: 15, thgt: 10, sg: 1.00, temp: 25, lvl: 6.0 },
+  level: { lo: 0, hi: 15, ma: 12 },
+  pressure: { lo: 0, hi: 10, ma: 16 }
+};
+
+function applyPreset(key) {
+  const p = PRESETS[key];
+  if (!p) return;
+  triggerHaptic('light');
+  for (const id in p) {
+    const el = $('#' + id);
+    if (!el) continue;
+    el.value = p[id];
+  }
+  volCalc();
+  drawTank();
+  mAcalc();
+}
+
+function volCalc() {
+  const isCyl = $('#shape').value === 'cyl';
+  const D = n('dia');
+  const H = isCyl ? n('thgt') : D;
+  let h = Math.max(0, Math.min(n('lvl'), H));
+  const T = n('temp');
+  const sg = clampSG($('#sg').value);
+  const a = clampAlpha($('#alpha').value);
+
+  let V_gross = 0;
+  if (isCyl) {
+    V_gross = (Math.PI / 4) * D * D * h;
+  } else {
+    const R = D / 2;
+    V_gross = (Math.PI * h * h * (3 * R - h)) / 3;
+  }
+
+  const vcf = 1 - a * (T - 15);
+  const density_obs = sg * 1000 * vcf;
+  const V_std = V_gross * vcf;
+  const mass_t = (V_gross * density_obs) / 1000;
+
+  const pct = H > 0 ? (h / H) * 100 : 0;
+  const al = { HH: n('aHH'), H: n('aH'), L: n('aL'), LL: n('aLL') };
+
+  let st = 'Normal Safe Level', cls = 'ok', icon = '✅';
+  if (pct >= al.HH) { st = 'HIGH-HIGH (HH) EMERGENCY OVERFILL TRIP'; cls = 'bad'; icon = '🚨'; }
+  else if (pct >= al.H) { st = 'High (H) Warning Level'; cls = 'warn'; icon = '⚠️'; }
+  else if (pct <= al.LL) { st = 'LOW-LOW (LL) SUCTION TRIP'; cls = 'bad'; icon = '🚨'; }
+  else if (pct <= al.L) { st = 'Low (L) Suction Warning'; cls = 'warn'; icon = '⚠️'; }
+
+  const dash = $('#tankDashboard');
+  if (dash) {
+    dash.className = 'out ' + cls;
+    dash.innerHTML = `
+      <div style="font-weight:700;font-size:1.05rem">${icon} ${st}</div>
+      <div style="margin:4px 0"><b>Level:</b> ${h.toFixed(2)} m / ${H.toFixed(2)} m (<b>${pct.toFixed(1)}%</b> full)</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:6px;font-size:0.92rem">
+        <div><b>Gross Volume:</b> ${V_gross.toFixed(1)} m³</div>
+        <div><b>Std Vol (@15°C):</b> ${V_std.toFixed(1)} m³</div>
+        <div><b>Observed Density:</b> ${density_obs.toFixed(1)} kg/m³</div>
+        <div><b>Liquid Mass:</b> ${mass_t.toFixed(1)} Tonnes</div>
+      </div>
+      <small class="hint">Linear thermal expansion estimate. Use API MPMS 11.1 tables for custody transfer.</small>
+    `;
+  }
+}
+
+function drawTank() {
+  const box = $('#tankBox');
+  if (!box) return;
+  const sph = $('#shape').value === 'sph';
+  const D = n('dia'), H = sph ? D : n('thgt');
+  let h = Math.max(0, Math.min(n('lvl'), H));
+
+  const pct = H > 0 ? (h / H) * 100 : 0;
+  const al = { HH: n('aHH'), H: n('aH'), L: n('aL'), LL: n('aLL') };
+  const top = 20, bot = 240;
+  const y = p => bot - (bot - top) * (p / 100);
+  const ty = 220 * (1 - pct / 100);
+
+  const clip = sph ? '<circle cx="130" cy="130" r="110"/>' : '<rect x="62" y="20" width="136" height="220"/>';
+  const frame = sph 
+    ? '<circle cx="130" cy="130" r="110" fill="none" stroke="currentColor" stroke-width="3"/>' 
+    : '<rect x="60" y="20" width="140" height="220" rx="6" fill="none" stroke="currentColor" stroke-width="3"/>';
+
+  const lines = Object.entries(al)
+    .filter(([_, v]) => v >= 0 && v <= 100)
+    .map(([k, v]) => `<line class="al ${k.includes('HH') || k.includes('LL') ? 'crit' : 'warn'}" x1="${sph ? 20 : 60}" x2="246" y1="${y(v)}" y2="${y(v)}"/><text x="250" y="${y(v) + 4}" font-size="11" fill="currentColor">${k} ${v}%</text>`)
+    .join('');
+
+  box.innerHTML = `
+    <svg class="tank2" viewBox="0 0 320 260" role="img" aria-label="Tank Level ${pct.toFixed(0)}%">
+      <defs><clipPath id="tclip">${clip}</clipPath></defs>
+      <g clip-path="url(#tclip)">
+        <rect id="tliq" class="lvl" x="20" y="20" width="220" height="220" style="transform:translateY(${ty}px)"/>
+      </g>
+      ${frame}
+      ${lines}
+    </svg>
+  `;
+}
+
+function overfill() {
+  const D = n('odia'), fill = n('rate'), gap = n('gap'), resp = n('resp');
+  const A = (Math.PI / 4) * D * D;
+  const tmin = (gap * A) / (fill || 1) * 60;
+  const margin = tmin - resp;
+
+  const cls = margin < 0 ? 'bad' : margin < 5 ? 'warn' : 'ok';
+  const out = $('#ofOut');
+  if (!out) return;
+  out.className = 'out ' + cls;
+  out.innerHTML = `
+    <div><b>Time from HH to Roof Overflow:</b> ${tmin.toFixed(1)} minutes</div>
+    <div><b>Operator Response Window:</b> ${resp} minutes</div>
+    <div style="margin-top:4px;font-size:1.02rem"><b>Safety Margin:</b> <b>${margin.toFixed(1)} min</b> ${margin < 0 ? '🚨 INSUFFICIENT: LOWER FILL RATE' : '✅ SAFE BUFFER'}</div>
+  `;
+}
+
+let proofT = null, proofEnd = 0;
+function proofTick() {
+  const o = $('#ptOut');
+  const s = Math.max(0, Math.ceil((proofEnd - Date.now()) / 1000));
+  o.textContent = `Running Proof Test: ${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')} remaining`;
+  if (s <= 0) {
+    clearInterval(proofT);
+    proofT = null;
+    o.textContent = '✅ Proof Test Elapsed: Record valve stroke and trip confirmation.';
+    triggerHaptic('warning');
+  }
+}
+
+function proof() {
+  clearInterval(proofT);
+  const m = n('pt');
+  if (m <= 0) return;
+  triggerHaptic('light');
+  proofEnd = Date.now() + m * 60000;
+  proofTick();
+  proofT = setInterval(proofTick, 250);
+}
+
+function renderCalc() {
+  const v = $('#view-calc');
+  if (!v) return;
+
+  v.innerHTML = `
+    <h2>Interactive Field Calculators</h2>
+
+    <!-- 4-20 mA Loop Card -->
+    <div class="card">
+      <div class="card-head">
+        <h3>4–20 mA Sensor Loop (NAMUR NE43)</h3>
+        <span class="badge-info">Analog Signal Verification</span>
+      </div>
+      <p class="card-desc">Converts instrument milliamp readings to scaled process engineering units (meters, bar, °C).</p>
+      
+      <div class="chips presets">
+        <span class="chip-label">Quick Presets:</span>
+        <button type="button" class="chip" data-preset="level">Level: 0–15m</button>
+        <button type="button" class="chip" data-preset="pressure">Pressure: 0–10 bar</button>
+      </div>
+
+      <div class="grid">
+        <div>
+          <label>Measured Signal (mA)</label>
+          <input id="ma" type="number" step="any" inputmode="decimal" value="12">
+          <small class="hint">Standard signal (4.00 mA = 0%, 20.00 mA = 100%)</small>
+        </div>
+        <div>
+          <label>Range Low (0%)</label>
+          <input id="lo" type="number" step="any" inputmode="decimal" value="0">
+        </div>
+        <div>
+          <label>Range High (100%)</label>
+          <input id="hi" type="number" step="any" inputmode="decimal" value="20">
+        </div>
+      </div>
+      <div id="maOut" class="out"></div>
+    </div>
+
+    <!-- Tank Volume & Graphic -->
+    <div class="card">
+      <div class="card-head">
+        <h3>Tank Volume, Mass & Visual Gauge</h3>
+        <span class="badge-info">Bulk Liquid Stock</span>
+      </div>
+      <p class="card-desc">Calculate storage capacity, gross volume, and temperature-adjusted metric tonnes.</p>
+
+      <div class="chips presets">
+        <span class="chip-label">Load Tank Type:</span>
+        <button type="button" class="chip" data-preset="diesel">Diesel Tank (20m x 12m)</button>
+        <button type="button" class="chip" data-preset="fuel">Fuel Oil Tank (30m x 14m)</button>
+        <button type="button" class="chip" data-preset="water">Water Storage (15m x 10m)</button>
+      </div>
+
+      <div class="grid">
+        <div>
+          <label>Shape</label>
+          <select id="shape">
+            <option value="cyl">Vertical Cylinder</option>
+            <option value="sph">Sphere (LPG/Gas)</option>
+          </select>
+        </div>
+        <div>
+          <label>Diameter (m)</label>
+          <input id="dia" type="number" step="any" inputmode="decimal" value="30">
+        </div>
+        <div>
+          <label>Liquid Level (m)</label>
+          <input id="lvl" type="number" step="any" inputmode="decimal" value="10">
+        </div>
+        <div>
+          <label>Temperature (°C)</label>
+          <input id="temp" type="number" step="any" inputmode="decimal" value="35">
+        </div>
+        <div>
+          <label>SG @15°C</label>
+          <input id="sg" type="number" step="any" inputmode="decimal" min="0.5" max="2" value="0.85">
+          <small class="hint">Specific gravity relative to water (Diesel: 0.84, Heavy Fuel: 0.92, Water: 1.0)</small>
+        </div>
+        <div>
+          <label>Tank Shell Height (m)</label>
+          <input id="thgt" type="number" step="any" inputmode="decimal" value="14">
+        </div>
+      </div>
+
+      <!-- Integrated Gauge Display -->
+      <div class="visual-tank-container">
+        <div id="tankBox"></div>
+        <div id="tankDashboard" class="out"></div>
+      </div>
+
+      <details class="alarmset">
+        <summary>⚙️ Alarm Setpoints, Thermal Expansion & API Gravity</summary>
+        <div class="grid" style="margin-top:10px">
+          <div><label>LL Setpoint (%)</label><input id="aLL" type="number" step="any" value="5"></div>
+          <div><label>L Setpoint (%)</label><input id="aL" type="number" step="any" value="10"></div>
+          <div><label>H Setpoint (%)</label><input id="aH" type="number" step="any" value="85"></div>
+          <div><label>HH Setpoint (%)</label><input id="aHH" type="number" step="any" value="92"></div>
+          <div>
+            <label>Thermal Expansion (1/°C)</label>
+            <input id="alpha" type="number" step="any" value="0.0008">
+            <small class="hint">Clamped between 0.0001 and 0.0025</small>
+          </div>
+          <div>
+            <label>API Gravity (°API)</label>
+            <div style="display:flex;gap:6px">
+              <input id="api" type="number" step="any" value="35">
+              <button type="button" id="apiBtn" style="white-space:nowrap">To SG</button>
+            </div>
+          </div>
+        </div>
+        <div id="apiOut" class="out" style="display:none;margin-top:8px"></div>
+      </details>
+    </div>
+
+    <!-- API 2350 Overfill Window -->
+    <div class="card">
+      <div class="card-head">
+        <h3>HH Overfill Response Time (API 2350)</h3>
+        <span class="badge-info">Safety Margin</span>
+      </div>
+      <p class="card-desc">Calculates remaining response time before tank overflow occurs after tripping the High-High alarm.</p>
+
+      <div class="grid">
+        <div><label>Diameter (m)</label><input id="odia" type="number" step="any" value="30"></div>
+        <div><label>Max Fill Rate (m³/h)</label><input id="rate" type="number" step="any" value="1500"></div>
+        <div>
+          <label>HH to Overflow Gap (m)</label>
+          <input id="gap" type="number" step="any" value="0.6">
+          <small class="hint">Safety distance between HH switch trip and tank roof lip</small>
+        </div>
+        <div>
+          <label>Required Reaction Time (min)</label>
+          <input id="resp" type="number" step="any" value="10">
+          <small class="hint">API 2350 standard mandates 10 to 15 min minimum</small>
+        </div>
+      </div>
+      <div id="ofOut" class="out"></div>
+    </div>
+
+    <!-- Proof-Test Timer -->
+    <div class="card">
+      <div class="card-head">
+        <h3>Safety Proof-Test Countdown</h3>
+        <span class="badge-info">Functional Safety Audit</span>
+      </div>
+      <div style="display:flex;gap:10px;align-items:flex-end">
+        <div style="flex:1">
+          <label>Test Duration (Minutes)</label>
+          <input id="pt" type="number" step="any" value="15">
+        </div>
+        <button id="ptBtn" style="padding:10px 24px">Start Test</button>
+      </div>
+      <div id="ptOut" class="out" style="margin-top:10px">Status: Not started</div>
+    </div>
+  `;
+
+  v.addEventListener('input', e => {
+    const id = e.target.id;
+    if (id === 'sg') e.target.value = e.target.value.replace(/-/g, '');
+    if (['ma', 'lo', 'hi'].includes(id)) mAcalc();
+    else if (['shape', 'dia', 'thgt', 'lvl', 'temp', 'sg', 'alpha', 'aLL', 'aL', 'aH', 'aHH'].includes(id)) {
+      volCalc(); drawTank();
+    } else if (['odia', 'rate', 'gap', 'resp'].includes(id)) {
+      overfill();
+    }
+  });
+
+  v.addEventListener('click', e => {
+    const b = e.target.closest('[data-preset]');
+    if (b) applyPreset(b.dataset.preset);
+  });
+
+  $('#apiBtn').onclick = () => {
+    triggerHaptic('light');
+    const sg = sgFromAPI(n('api'));
+    $('#sg').value = clampSG(sg).toFixed(4);
+    $('#apiOut').style.display = 'block';
+    $('#apiOut').innerHTML = `Converted to SG: <b>${sg.toFixed(4)}</b> (Applied to Tank Calculator)`;
+    volCalc(); drawTank();
+  };
+
+  $('#ptBtn').onclick = proof;
+
+  mAcalc();
+  volCalc();
+  drawTank();
+  overfill();
+
+  renderTools();
+  renderSat();
+  renderPt100();
+  renderModbus();
+  pRestore();
+}
+
+/* ---------- TAB 2: FIELD TOOLS ---------- */
+
+const NUM = 'type="number" step="any" inputmode="decimal"';
+const store = {
+  get() { try { return JSON.parse(localStorage.getItem('calRecords') || '[]'); } catch (_) { return []; } },
+  set(v) { try { localStorage.setItem('calRecords', JSON.stringify(v)); return true; } catch (_) { return false; } }
+};
+const PTS = [0, 25, 50, 75, 100];
+
+function calRows() {
+  const lo = n('clo'), hi = n('chi'), tol = n('ctol');
+  return PTS.map((p, i) => {
+    const exp = 4 + (16 * p) / 100;
+    const m = Math.min(25, Math.max(0, parseFloat($('#m' + i).value)));
+    const err = isNaN(m) ? null : ((m - exp) / 16) * 100;
+    const el = $('#e' + i);
+    if (el) {
+      el.textContent = err === null ? '-' : err.toFixed(3) + '%';
+      el.style.fontWeight = '700';
+      el.style.color = err !== null && Math.abs(err) > tol ? '#ef4444' : '#10b981';
+    }
+    return { p, eu: +(lo + (p / 100) * (hi - lo)).toFixed(3), exp: +exp.toFixed(3), meas: isNaN(m) ? null : m, err };
+  });
+}
+
+function listRecords() {
+  const r = store.get();
+  const el = $('#calList');
+  if (!el) return;
+  el.innerHTML = r.length
+    ? r.map((x, i) => ({ x, i })).reverse().map(({ x, i }) => `
+        <div class="out rec ${x.pass ? '' : 'bad'}" style="display:flex;justify-content:space-between;align-items:center;margin-top:6px">
+          <div>
+            <b>${x.tag || 'No tag'}</b> ${x.pass ? '✅ PASS' : '🚨 FAIL'}<br>
+            <small style="opacity:0.7">${new Date(x.ts).toLocaleString()} | Max Error: ${x.maxErr.toFixed(3)}% (Tol: ${x.tol}%)</small>
+          </div>
+          <button class="del" data-i="${i}" style="background:none;border:none;color:#ef4444;font-size:1.2rem;cursor:pointer">✕</button>
+        </div>
+      `).join('')
+    : '<div class="out">No saved calibration records</div>';
+}
+
+function saveCal() {
+  const rows = calRows();
+  const tagV = $('#ctag').value.trim();
+  if (!tagV) {
+    triggerHaptic('warning');
+    alert('Please enter an Instrument Tag (e.g. LT-101) before saving.');
+    return;
+  }
+  if (rows.some(r => r.meas === null)) {
+    alert('Please enter all 5 measured mA values.');
+    return;
+  }
+  const tol = n('ctol');
+  const maxErr = Math.max(...rows.map(r => Math.abs(r.err)));
+  const rec = { ts: Date.now(), tag: tagV, lo: n('clo'), hi: n('chi'), unit: $('#cunit').value, tol, rows, maxErr, pass: maxErr <= tol };
+
+  const all = store.get();
+  all.push(rec);
+  store.set(all);
+  triggerHaptic(rec.pass ? 'success' : 'warning');
+  listRecords();
+}
+
+let swT0 = null, swRaf = 0, swEl = 0;
+function swTick() {
+  swEl = performance.now() - swT0;
+  $('#swOut').textContent = (swEl / 1000).toFixed(3) + ' s';
+  swRaf = requestAnimationFrame(swTick);
+}
+
+function swToggle() {
+  if (swT0 === null) {
+    triggerHaptic('light');
+    swT0 = performance.now();
+    $('#swBtn').textContent = '⏹ Stop Valve';
+    $('#swBtn').style.background = '#ef4444';
+    $('#swRes').textContent = 'Valve in transit…';
+    $('#swRes').className = 'out';
+    swTick();
+  } else {
+    cancelAnimationFrame(swRaf);
+    swEl = performance.now() - swT0;
+    swT0 = null;
+    $('#swBtn').textContent = '▶ Start Stroke';
+    $('#swBtn').style.background = '';
+    $('#swOut').textContent = (swEl / 1000).toFixed(3) + ' s';
+    swCheck();
+  }
+}
+
+function swCheck() {
+  const tg = n('swTarget') * 1000;
+  if (isNaN(tg) || !swEl) return;
+  const ok = swEl <= tg;
+  triggerHaptic(ok ? 'success' : 'warning');
+  $('#swRes').className = 'out ' + (ok ? '' : 'bad');
+  $('#swRes').innerHTML = `<b>${ok ? '✅ PASS' : '🚨 FAIL'}</b>: ${(swEl / 1000).toFixed(3)}s stroke time vs ${n('swTarget')}s target limit.`;
+}
+
+function swReset() {
+  cancelAnimationFrame(swRaf);
+  swT0 = null;
+  swEl = 0;
+  $('#swBtn').textContent = '▶ Start Stroke';
+  $('#swBtn').style.background = '';
+  $('#swOut').textContent = '0.000 s';
+  $('#swRes').className = 'out';
+  $('#swRes').textContent = 'Ready for valve stroke';
+}
+
+function reg(id) {
+  const v = $('#' + id).value.trim(), f = $('#rfmt').value;
+  if (!v) return NaN;
+  const x = f === 'hex'
+    ? (/^(0x)?[0-9a-f]{1,4}$/i.test(v) ? parseInt(v.replace(/^0x/i, ''), 16) : NaN)
+    : (/^\d{1,5}$/.test(v) ? parseInt(v, 10) : NaN);
+  return x >= 0 && x <= 65535 ? x : NaN;
+}
+
+function toFloat(a, b, bs, ws) {
+  let w = ws ? [b, a] : [a, b];
+  if (bs) w = w.map(x => ((x & 255) << 8) | (x >> 8));
+  const dv = new DataView(new ArrayBuffer(4));
+  dv.setUint16(0, w[0]);
+  dv.setUint16(2, w[1]);
+  return { f: dv.getFloat32(0), hex: '0x' + w.map(x => x.toString(16).padStart(4, '0')).join('').toUpperCase() };
+}
+
+function fpCalc() {
+  const a = reg('r1'), b = reg('r2'), o = $('#fpOut');
+  if (isNaN(a) || isNaN(b)) {
+    o.className = 'out bad';
+    o.textContent = 'Enter two valid 16-bit values (0–65535 or 0000–FFFF)';
+    $('#fpAll').innerHTML = '';
+    return;
+  }
+  const r = toFloat(a, b, $('#bs').checked, $('#ws').checked);
+  o.className = 'out';
+  o.innerHTML = `<b>Decoded Value: ${Number.isFinite(r.f) ? r.f.toPrecision(7) : r.f}</b><br><small class="hint">Assembled Registers: ${r.hex}</small>`;
+  $('#fpAll').innerHTML = '<table class="cal" style="margin-top:8px"><tr><th>Byte Order</th><th>Decoded Float</th></tr>' +
+    [['ABCD (Big Endian)', 0, 0], ['CDAB (Word Swap)', 0, 1], ['BADC (Byte Swap)', 1, 0], ['DCBA (Double Swap)', 1, 1]]
+      .map(([l, x, y]) => `<tr><td>${l}</td><td><b>${toFloat(a, b, !!x, !!y).f.toPrecision(6)}</b></td></tr>`).join('') + '</table>';
+}
+
+function renderTools() {
+  const v = $('#view-tools');
+  if (!v) return;
+
+  v.innerHTML = `
+    <h2>Field Instrumentation Tools</h2>
+
+    <!-- Loop Calibrator -->
+    <div class="card">
+      <div class="card-head">
+        <h3>5-Point Loop Calibrator (0–100%)</h3>
+        <span class="badge-info">ISO / SAT Verification</span>
+      </div>
+      <p class="card-desc">Tests sensor accuracy by comparing expected mA values against field meter readings.</p>
+
+      <div class="grid">
+        <div><label>Instrument Tag</label><input id="ctag" type="text" placeholder="e.g. LT-101"></div>
+        <div><label>Physical Unit</label><input id="cunit" type="text" value="m"></div>
+        <div><label>Range Low (0%)</label><input id="clo" ${NUM} value="0"></div>
+        <div><label>Range High (100%)</label><input id="chi" ${NUM} value="20"></div>
+      </div>
+      
+      <div style="display:flex;gap:10px;align-items:center;margin:8px 0">
+        <label style="margin:0">Tolerance (% of span):</label>
+        <input id="ctol" ${NUM} value="0.25" style="width:80px">
+        <button type="button" class="chip" id="calFill" style="margin-left:auto">💡 Test Demo (Ideal Pass)</button>
+      </div>
+
+      <table class="cal">
+        <tr><th>% Span</th><th>Physical Target (EU)</th><th>Exp mA</th><th>Measured mA</th><th>Error</th></tr>
+        ${PTS.map((p, i) => `<tr><td><b>${p}%</b></td><td id="u${i}">-</td><td>${(4 + (16 * p) / 100).toFixed(2)}</td><td><input id="m${i}" class="cm" ${NUM} min="0" max="25" placeholder="mA"></td><td id="e${i}">-</td></tr>`).join('')}
+      </table>
+      <div class="legend">
+        <small class="hint"><b>EU</b>: Engineering Units (meters, bar, °C) | <b>Exp mA</b>: Standard theoretical current.</small>
+      </div>
+      <div class="row" style="margin-top:10px">
+        <button id="calSave">💾 Save Record</button>
+        <button id="calClear">Clear Log</button>
+        <button id="calCsv">📊 Export CSV</button>
+      </div>
+      <div id="calList"></div>
+    </div>
+
+    <!-- ESD Stopwatch -->
+    <div class="card">
+      <div class="card-head">
+        <h3>Emergency Valve Stroke Stopwatch</h3>
+        <span class="badge-info">API 2350 Audit</span>
+      </div>
+      <p class="card-desc">Measures motorized/fail-safe valve travel time against safety limits.</p>
+      
+      <div class="big" id="swOut" style="font-size:2.8rem;text-align:center;font-weight:800;font-family:monospace;margin:12px 0">0.000 s</div>
+      
+      <div style="display:flex;gap:10px;align-items:center;justify-content:center">
+        <label style="margin:0">Datasheet Target Limit (s):</label>
+        <input id="swTarget" ${NUM} value="15" style="width:90px">
+      </div>
+      <div class="row" style="margin-top:12px;justify-content:center">
+        <button id="swBtn" style="padding:10px 24px">▶ Start Stroke</button>
+        <button id="swReset">Reset</button>
+      </div>
+      <div id="swRes" class="out" style="text-align:center">Ready</div>
+    </div>
+
+    <!-- Modbus IEEE 754 Float Decoder -->
+    <div class="card">
+      <div class="card-head">
+        <h3>Modbus 32-Bit Float Decoder (IEEE 754)</h3>
+        <span class="badge-info">PLC Fieldbus Diagnostics</span>
+      </div>
+      <p class="card-desc">Decodes two 16-bit Modbus registers into engineering floating-point numbers.</p>
+
+      <div class="chips presets">
+        <span class="chip-label">Try Examples:</span>
+        <button type="button" class="chip" id="mb-ex1">Demo: 25.0 °C Level</button>
+        <button type="button" class="chip" id="mb-ex2">Demo: 100.5 bar Pressure</button>
+      </div>
+
+      <div class="grid">
+        <div><label>Register 1 (High Word)</label><input id="r1" type="text" autocapitalize="characters" value="41C8"></div>
+        <div><label>Register 2 (Low Word)</label><input id="r2" type="text" autocapitalize="characters" value="0000"></div>
+      </div>
+      <div style="display:flex;gap:16px;margin:8px 0">
+        <label class="chk"><input id="bs" type="checkbox"> Byte swap</label>
+        <label class="chk"><input id="ws" type="checkbox"> Word swap</label>
+      </div>
+      <div id="fpOut" class="out"></div>
+      <div id="fpAll"></div>
+    </div>
+  `;
+
+  const ux = () => {
+    const lo = n('clo'), hi = n('chi'), unit = $('#cunit').value || '';
+    PTS.forEach((p, i) => {
+      const el = $('#u' + i);
+      if (el) el.textContent = (lo + (p / 100) * (hi - lo)).toFixed(2) + ' ' + unit;
+    });
+  };
+
+  v.addEventListener('input', e => {
+    const id = e.target.id;
+    if (e.target.classList.contains('cm') || ['clo', 'chi', 'ctol', 'cunit'].includes(id)) {
+      ux(); calRows();
+    }
+    if (['r1', 'r2', 'bs', 'ws'].includes(id)) fpCalc();
+  });
+
+  $('#calFill').onclick = () => {
+    PTS.forEach((p, i) => {
+      const el = $('#m' + i);
+      if (el) el.value = (4 + (16 * p) / 100).toFixed(2);
+    });
+    calRows();
+    triggerHaptic('success');
+  };
+
+  $('#calSave').onclick = saveCal;
+  $('#calClear').onclick = () => {
+    if (confirm('Delete all saved calibration records?')) {
+      store.set([]); listRecords();
+    }
+  };
+  $('#calCsv').onclick = () => {
+    const r = store.get();
+    if (!r.length) { alert('No calibration records to export.'); return; }
+    let csv = 'Tag,Status,Max_Error_Pct,Tolerance_Pct,Timestamp\n';
+    r.forEach(x => {
+      csv += `"${x.tag}","${x.pass ? 'PASS' : 'FAIL'}",${x.maxErr.toFixed(3)},${x.tol},"${new Date(x.ts).toISOString()}"\n`;
+    });
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const u = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = u; a.download = 'Loop_Calibration_Log.csv'; a.click();
+  };
+
+  $('#swBtn').onclick = swToggle;
+  $('#swReset').onclick = swReset;
+
+  $('#mb-ex1').onclick = () => { $('#r1').value = '41C8'; $('#r2').value = '0000'; fpCalc(); };
+  $('#mb-ex2').onclick = () => { $('#r1').value = '42C9'; $('#r2').value = '0000'; fpCalc(); };
+
+  ux();
+  listRecords();
+  fpCalc();
+}
+
+/* ---------- RTD & MODBUS EXCEPTION EXTENSIONS ---------- */
+
+function rtdT(R, R0) {
+  const A = 3.9083e-3, B = -5.775e-7;
+  return (-A + Math.sqrt(A * A - 4 * B * (1 - R / R0))) / (2 * B);
+}
+
+function rtdCalc() {
+  const R = n('rtdR'), R0 = n('rtdR0'), o = $('#rtdOut');
+  if (!(R > 0) || !(R0 > 0)) { o.textContent = 'Enter positive resistance'; return; }
+  const t = rtdT(R, R0), f = t * 1.8 + 32;
+  o.className = 'out' + (t < -200 || t > 850 ? ' bad' : '');
+  o.innerHTML = `<b>${t.toFixed(2)} °C</b> (${f.toFixed(2)} °F)`;
+}
+
+function renderPt100() {
+  $('#view-tools').insertAdjacentHTML('beforeend', `
+    <div class="card">
+      <div class="card-head">
+        <h3>Pt100 RTD Resistance to Temperature</h3>
+        <span class="badge-info">IEC 60751 Standard</span>
+      </div>
+      <p class="card-desc">Measures platinum RTD resistance: 100.00 Ω = 0.0 °C (ice point), 138.51 Ω = 100.0 °C (boiling point).</p>
+      <div class="grid">
+        <div><label>Measured Resistance (Ω)</label><input id="rtdR" ${NUM} value="138.51"></div>
+        <div><label>Base Resistance R0 (Ω)</label><input id="rtdR0" ${NUM} value="100"></div>
+      </div>
+      <div id="rtdOut" class="out"></div>
+    </div>
+  `);
+  $('#view-tools').addEventListener('input', e => {
+    if (e.target.id === 'rtdR' || e.target.id === 'rtdR0') rtdCalc();
+  });
+  rtdCalc();
+}
+
+const MBX = {
+  '01': ['Illegal Function', 'The slave does not support this function code (e.g. attempting FC04 on a holding-only register map).', 'Check vendor documentation for supported function codes.'],
+  '02': ['Illegal Data Address', 'The requested register address does not exist on the device.', 'Verify 0-based vs 1-based addressing offset (add or subtract 1 from register).'],
+  '03': ['Illegal Data Value', 'The data quantity is invalid (e.g. requesting more than 125 registers at once).', 'Reduce the requested register count.'],
+  '04': ['Slave Device Failure', 'An unrecoverable error occurred inside the field transmitter.', 'Cycle power to the field instrument and verify diagnostic LEDs.']
+};
+
+function renderModbus() {
+  $('#view-tools').insertAdjacentHTML('beforeend', `
+    <div class="card">
+      <div class="card-head">
+        <h3>Modbus Exception Code Decoder</h3>
+        <span class="badge-info">Fieldbus Troubleshooting</span>
+      </div>
+      <label>Modbus Exception Code</label>
+      <select id="mbx">
+        ${Object.keys(MBX).map(k => `<option value="${k}">${k} - ${MBX[k][0]}</option>`).join('')}
+      </select>
+      <div id="mbxOut" class="out"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <h3>RS-485 Serial Communication Checklist</h3>
+        <span class="badge-info">Field Wiring Best Practices</span>
+      </div>
+      <ul style="padding-left:18px;margin:8px 0;font-size:0.9rem">
+        <li><b>Polarity Check:</b> Swap A/B (D+/D-) lines if the master receives timeout errors.</li>
+        <li><b>Termination:</b> Ensure exactly 120 Ω resistors are installed at the two physical ends of the trunk.</li>
+        <li><b>Baud Rate:</b> Confirm baud rate, data bits, and parity match all devices on the daisy chain (e.g., 9600 8-E-1).</li>
+      </ul>
+    </div>
+  `);
+
+  const show = () => {
+    const x = MBX[$('#mbx').value];
+    $('#mbxOut').className = 'out warn';
+    $('#mbxOut').innerHTML = `<b>${x[0]}</b><br>${x[1]}<br><small class="hint">Remedy: ${x[2]}</small>`;
+  };
+  $('#mbx').onchange = show;
+  show();
+}
+
+/* ---------- TAB 3: SAT PROTOCOL ---------- */
+
+const SAT_ITEMS = [
+  ['Cold Loop Checks', [
+    'Tag, range, engineering units, and loop sheet match the as-built P&ID',
+    'Cable continuity, insulation meggering resistance, and shield single-point earthing verified',
+    'Intrinsically Safe (IS) blue terminal partitions and 50mm segregation confirmed',
+    'Loop power supply voltage (24 VDC) and total loop resistance within device operating envelope',
+    'HART digital communication and vendor device parameters verified'
+  ]],
+  ['Hot Loop 5-Point Calibration', [
+    'Inject 4.00 mA (0%) and confirm zero reading on SCADA graphic and local transmitter display',
+    'Inject 8.00 mA (25%) and confirm scale linearity within tolerance',
+    'Inject 12.00 mA (50%) and confirm midpoint reading',
+    'Inject 16.00 mA (75%) and confirm linearity',
+    'Inject 20.00 mA (100%) and verify full-scale process calibration'
+  ]],
+  ['Safety Interlocks & ESD Verification', [
+    'Manually trip LSHH float switch and confirm audible alarm and SCADA Priority 1 banner',
+    'Verify emergency inlet ESD valve full fail-safe closure within specified stroke time',
+    'Confirm jetty/pipeline booster feed pump hardwired interlock shutdown executes',
+    'Confirm maintenance bypass switch is key-locked, alarmed, and logged in audit trail',
+    'Verify valve fail-safe position upon total loss of instrument air or control power'
+  ]],
+  ['ATG Tank Dip Sounding & Gauge Calibration', [
+    'Perform manual hand-dip sounding tape measurement at reference datum plate',
+    'Compare radar/servo gauge level against dip tape and verify strap table offset',
+    'Confirm multi-spot Pt100 temperature element average matches laboratory thermometer',
+    'Verify Nitrogen blanketing pressure regulator (PCV) setpoint and vapor recovery path',
+    'Conduct final client SAT punchlist walkdown and sign off calibration sheet'
+  ]]
+];
+
+const satGet = () => { try { return JSON.parse(localStorage.getItem('satState_v2') || '{}'); } catch (_) { return {}; } };
+const satSet = o => { try { localStorage.setItem('satState_v2', JSON.stringify(o)); } catch (_) {} };
+
+function satProgress() {
+  const t = document.querySelectorAll('.satchk').length;
+  const c = document.querySelectorAll('.satchk:checked').length;
+  const el = $('#satProg');
+  if (el) {
+    el.className = 'out ' + (c === t ? 'ok' : '');
+    el.innerHTML = `<b>SAT Progress: ${c} of ${t} steps completed (${t > 0 ? Math.round((c / t) * 100) : 0}%)</b>`;
+  }
+}
+
+function renderSat() {
+  const sv = $('#view-sat');
+  if (!sv) return;
+  const s = satGet();
+  let idx = 0;
+
+  const body = SAT_ITEMS.map(([grp, items]) => `
+    <h3 style="margin-top:14px;color:var(--accent-amber)">${grp}</h3>
+    ${items.map(txt => {
+      const id = 'sat_' + (idx++);
+      return `
+        <label class="chk" style="margin:6px 0">
+          <input type="checkbox" class="satchk" id="${id}" ${s[id] ? 'checked' : ''}>
+          <span>${txt}</span>
+        </label>
+      `;
+    }).join('')}
+  `).join('');
+
+  sv.innerHTML = `
+    <h2>Commissioning & SAT Checklist</h2>
+    <div class="card">
+      <div class="card-head">
+        <h3>Site Acceptance Test Protocol (20 Steps)</h3>
+        <span class="badge-info">ISO / SAT Verification</span>
+      </div>
+      <div class="grid" style="margin:8px 0">
+        <div><label>Tank / Loop Tag</label><input id="satRef" type="text" placeholder="e.g. TK-101 / LT-101"></div>
+        <div><label>Lead Commissioning Engineer</label><input id="satEng" type="text" placeholder="Engineer Name"></div>
+      </div>
+      <div id="satProg" class="out"></div>
+      ${body}
+      <div class="row" style="margin-top:14px">
+        <button id="satReset">Reset Checklist</button>
+        <button id="satExp">Export SAT Summary</button>
+      </div>
+    </div>
+  `;
+
+  sv.addEventListener('change', e => {
+    if (!e.target.classList.contains('satchk')) return;
+    const o = satGet();
+    if (e.target.checked) o[e.target.id] = 1; else delete o[e.target.id];
+    satSet(o);
+    satProgress();
+    triggerHaptic(document.querySelectorAll('.satchk').length === document.querySelectorAll('.satchk:checked').length ? 'success' : 'light');
+  });
+
+  $('#satReset').onclick = () => {
+    if (confirm('Reset all 20 commissioning steps?')) {
+      satSet({});
+      document.querySelectorAll('.satchk').forEach(c => c.checked = false);
+      satProgress();
+      triggerHaptic('warning');
+    }
+  };
+
+  $('#satExp').onclick = () => {
+    const ref = $('#satRef').value || 'TK-UNSPECIFIED';
+    const eng = $('#satEng').value || 'Unassigned';
+    const c = document.querySelectorAll('.satchk:checked').length;
+    const t = document.querySelectorAll('.satchk').length;
+    alert(`AGAC SAT SUMMARY REPORT\nTarget: ${ref}\nLead Engineer: ${eng}\nProgress: ${c}/${t} verified steps.\nTimestamp: ${new Date().toLocaleString()}`);
+  };
+
+  satProgress();
+}
+
+/* ---------- INPUT PERSISTENCE ---------- */
+
+const pGet = () => { try { return JSON.parse(localStorage.getItem('inputState') || '{}'); } catch (_) { return {}; } };
+const pSet = o => { try { localStorage.setItem('inputState', JSON.stringify(o)); } catch (_) {} };
+
+function pSave(e) {
+  const t = e.target;
+  if (!t.id || t.classList.contains('satchk') || t.classList.contains('cm')) return;
+  const o = pGet();
+  o[t.id] = t.value;
+  pSet(o);
+}
+
+function pRestore() {
+  const o = pGet();
+  for (const k in o) {
+    const el = document.getElementById(k);
+    if (el) el.value = o[k];
+  }
+}
+
+document.addEventListener('input', pSave);
+document.addEventListener('change', pSave);
+
+/* ---------- INITIALIZE ENGINE ---------- */
+document.addEventListener('DOMContentLoaded', () => {
+  renderCalc();
+});
