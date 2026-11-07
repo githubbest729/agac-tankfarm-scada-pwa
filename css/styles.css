@@ -104,3 +104,10 @@ button:active{transform:scale(.97)}
 [data-theme=sun] *,[data-theme=oled] *{backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
 [data-theme=sun] body{background:#fff!important}
 [data-theme=sun] #tabs button{background:#fff!important;color:#000!important}
+
+/* SAT accordion, compact tank */
+details.guide-acc{padding:0 14px}details.guide-acc[open]{padding-bottom:14px}
+details.guide-acc summary,details.alarmset summary{display:flex;align-items:center;min-height:48px;cursor:pointer;font-weight:700;color:var(--accent-amber)}
+.guide-acc .sub{margin-top:10px;padding-top:10px;border-top:var(--bw) solid var(--border-color)}
+details.alarmset{margin:6px 0}
+.tank2{max-width:240px}
