@@ -1,4 +1,4 @@
-const V='agac-scada-v11',ASSETS=['./','index.html','offline.html','manifest.webmanifest','favicon.svg','favicon.ico','apple-touch-icon.png','og-image.png','css/styles.css','js/app.js','js/calculators.js','js/field-guide.js','icons/icon-192.png','icons/icon-512.png','icons/icon-maskable-192.png','icons/icon-maskable-512.png'];
+const V='agac-scada-v12',ASSETS=['./','index.html','offline.html','manifest.webmanifest','favicon.svg','favicon.ico','apple-touch-icon.png','og-image.png','css/styles.css','js/app.js','js/calculators.js','js/field-guide.js','icons/icon-192.png','icons/icon-512.png','icons/icon-maskable-192.png','icons/icon-maskable-512.png'];
 const EXT=['https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js'];
 self.addEventListener('install',e=>{self.skipWaiting();e.waitUntil(caches.open(V).then(async c=>{await c.addAll(ASSETS);await Promise.all(EXT.map(u=>fetch(u,{mode:'cors'}).then(r=>r.ok?c.put(u,r):null).catch(()=>null)))}))});
 self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(k=>Promise.all(k.filter(x=>x!==V).map(x=>caches.delete(x)))).then(()=>self.clients.claim()))});
