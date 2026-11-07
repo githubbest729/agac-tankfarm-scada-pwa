@@ -119,3 +119,159 @@ details.alarmset{margin:6px 0}
 
 /* Hint / subtitle micro-labels */
 .hint{color:#94a3b8;font-size:.78rem;font-style:italic;font-weight:400;margin-top:4px}
+
+
+/* Card Headings & Micro Badges */
+.card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+.badge-info {
+  font-size: 0.72rem;
+  background: rgba(2, 132, 199, 0.2);
+  color: #38bdf8;
+  border: 1px solid rgba(56, 189, 248, 0.3);
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-weight: 600;
+}
+.card-desc {
+  font-size: 0.85rem;
+  color: #94a3b8;
+  margin-top: 0;
+  margin-bottom: 12px;
+}
+
+/* Preset Chips */
+.chips.presets {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+.chip-label {
+  font-size: 0.78rem;
+  color: #64748b;
+  font-weight: 600;
+}
+.chip {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #e2e8f0;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 0.78rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.chip:hover {
+  background: rgba(2, 132, 199, 0.25);
+  border-color: #0284c7;
+  color: #ffffff;
+}
+
+/* Integrated Tank Faceplate Layout */
+.visual-tank-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  margin: 14px 0;
+}
+@media (min-width: 600px) {
+  .visual-tank-container {
+    flex-direction: row;
+    align-items: center;
+  }
+  #tankBox { flex: 0 0 280px; }
+  #tankDashboard { flex: 1; }
+}
+
+/* Subtle hints */
+.hint {
+  display: block;
+  font-size: 0.75rem;
+  color: #64748b;
+  margin-top: 4px;
+}
+
+/* --- Modern Card Micro-Badges & Presets --- */
+.card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+.badge-info {
+  font-size: 0.72rem;
+  background: rgba(2, 132, 199, 0.2);
+  color: #38bdf8;
+  border: 1px solid rgba(56, 189, 248, 0.3);
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-weight: 600;
+}
+.card-desc {
+  font-size: 0.85rem;
+  color: #94a3b8;
+  margin-top: 0;
+  margin-bottom: 12px;
+}
+
+/* --- Quick Presets Chips --- */
+.chips.presets {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+.chip-label {
+  font-size: 0.78rem;
+  color: #64748b;
+  font-weight: 600;
+}
+.chip {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #e2e8f0;
+  padding: 5px 12px;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.chip:hover {
+  background: rgba(2, 132, 199, 0.25);
+  border-color: #0284c7;
+  color: #ffffff;
+}
+
+/* --- Integrated Tank Faceplate Layout --- */
+.visual-tank-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  margin: 14px 0;
+}
+@media (min-width: 600px) {
+  .visual-tank-container {
+    flex-direction: row;
+    align-items: center;
+  }
+  #tankBox { flex: 0 0 260px; }
+  #tankDashboard { flex: 1; }
+}
+
+.hint {
+  display: block;
+  font-size: 0.75rem;
+  color: #64748b;
+  margin-top: 4px;
+  font-style: italic;
+}
+
