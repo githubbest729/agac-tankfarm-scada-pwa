@@ -1,5 +1,5 @@
 /* ==========================================================================
-   AGAC SCADA FIELD HANDBOOK - CALCULATORS, TOOLS & SAT MODULE
+   AGAC SCADA FIELD HANDBOOK - CALCULATORS, TOOLS & SAT MODULE (STABLE V13)
    ========================================================================== */
 
 /* ---------- Haptic Feedback Engine ---------- */
@@ -21,7 +21,7 @@ function triggerHaptic(type = 'light') {
         document.body.appendChild(window._hx);
       }
       const c = window._hx.querySelector('input');
-      c.checked = !c.checked;
+      if (c) c.checked = !c.checked;
     } catch (_) {}
   }
 }
@@ -101,13 +101,17 @@ function applyPreset(key) {
 }
 
 function volCalc() {
-  const isCyl = $('#shape').value === 'cyl';
+  const shapeEl = $('#shape');
+  if (!shapeEl) return;
+  const isCyl = shapeEl.value === 'cyl';
   const D = n('dia');
   const H = isCyl ? n('thgt') : D;
   let h = Math.max(0, Math.min(n('lvl'), H));
   const T = n('temp');
-  const sg = clampSG($('#sg').value);
-  const a = clampAlpha($('#alpha').value);
+  const sgEl = $('#sg');
+  const alphaEl = $('#alpha');
+  const sg = clampSG(sgEl ? sgEl.value : 0.85);
+  const a = clampAlpha(alphaEl ? alphaEl.value : 0.0008);
 
   let V_gross = 0;
   if (isCyl) {
@@ -150,8 +154,9 @@ function volCalc() {
 
 function drawTank() {
   const box = $('#tankBox');
-  if (!box) return;
-  const sph = $('#shape').value === 'sph';
+  const shapeEl = $('#shape');
+  if (!box || !shapeEl) return;
+  const sph = shapeEl.value === 'sph';
   const D = n('dia'), H = sph ? D : n('thgt');
   let h = Math.max(0, Math.min(n('lvl'), H));
 
@@ -203,6 +208,7 @@ function overfill() {
 let proofT = null, proofEnd = 0;
 function proofTick() {
   const o = $('#ptOut');
+  if (!o) return;
   const s = Math.max(0, Math.ceil((proofEnd - Date.now()) / 1000));
   o.textContent = `Running Proof Test: ${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')} remaining`;
   if (s <= 0) {
@@ -396,16 +402,24 @@ function renderCalc() {
     if (b) applyPreset(b.dataset.preset);
   });
 
-  $('#apiBtn').onclick = () => {
-    triggerHaptic('light');
-    const sg = sgFromAPI(n('api'));
-    $('#sg').value = clampSG(sg).toFixed(4);
-    $('#apiOut').style.display = 'block';
-    $('#apiOut').innerHTML = `Converted to SG: <b>${sg.toFixed(4)}</b> (Applied to Tank Calculator)`;
-    volCalc(); drawTank();
-  };
+  const apiBtn = $('#apiBtn');
+  if (apiBtn) {
+    apiBtn.onclick = () => {
+      triggerHaptic('light');
+      const sg = sgFromAPI(n('api'));
+      const sgEl = $('#sg');
+      if (sgEl) sgEl.value = clampSG(sg).toFixed(4);
+      const apiOut = $('#apiOut');
+      if (apiOut) {
+        apiOut.style.display = 'block';
+        apiOut.innerHTML = `Converted to SG: <b>${sg.toFixed(4)}</b> (Applied to Tank Calculator)`;
+      }
+      volCalc(); drawTank();
+    };
+  }
 
-  $('#ptBtn').onclick = proof;
+  const ptBtn = $('#ptBtn');
+  if (ptBtn) ptBtn.onclick = proof;
 
   mAcalc();
   volCalc();
@@ -432,7 +446,8 @@ function calRows() {
   const lo = n('clo'), hi = n('chi'), tol = n('ctol');
   return PTS.map((p, i) => {
     const exp = 4 + (16 * p) / 100;
-    const m = Math.min(25, Math.max(0, parseFloat($('#m' + i).value)));
+    const inp = $('#m' + i);
+    const m = inp ? Math.min(25, Math.max(0, parseFloat(inp.value))) : NaN;
     const err = isNaN(m) ? null : ((m - exp) / 16) * 100;
     const el = $('#e' + i);
     if (el) {
@@ -462,20 +477,22 @@ function listRecords() {
 }
 
 function saveCal() {
-  const rows = calRows();
-  const tagV = $('#ctag').value.trim();
+  const tagEl = $('#ctag');
+  const tagV = tagEl ? tagEl.value.trim() : '';
   if (!tagV) {
     triggerHaptic('warning');
     alert('Please enter an Instrument Tag (e.g. LT-101) before saving.');
     return;
   }
+  const rows = calRows();
   if (rows.some(r => r.meas === null)) {
     alert('Please enter all 5 measured mA values.');
     return;
   }
   const tol = n('ctol');
   const maxErr = Math.max(...rows.map(r => Math.abs(r.err)));
-  const rec = { ts: Date.now(), tag: tagV, lo: n('clo'), hi: n('chi'), unit: $('#cunit').value, tol, rows, maxErr, pass: maxErr <= tol };
+  const unitEl = $('#cunit');
+  const rec = { ts: Date.now(), tag: tagV, lo: n('clo'), hi: n('chi'), unit: unitEl ? unitEl.value : 'm', tol, rows, maxErr, pass: maxErr <= tol };
 
   const all = store.get();
   all.push(rec);
@@ -487,26 +504,27 @@ function saveCal() {
 let swT0 = null, swRaf = 0, swEl = 0;
 function swTick() {
   swEl = performance.now() - swT0;
-  $('#swOut').textContent = (swEl / 1000).toFixed(3) + ' s';
+  const out = $('#swOut');
+  if (out) out.textContent = (swEl / 1000).toFixed(3) + ' s';
   swRaf = requestAnimationFrame(swTick);
 }
 
 function swToggle() {
+  const btn = $('#swBtn');
+  const res = $('#swRes');
   if (swT0 === null) {
     triggerHaptic('light');
     swT0 = performance.now();
-    $('#swBtn').textContent = '⏹ Stop Valve';
-    $('#swBtn').style.background = '#ef4444';
-    $('#swRes').textContent = 'Valve in transit…';
-    $('#swRes').className = 'out';
+    if (btn) { btn.textContent = '⏹ Stop Valve'; btn.style.background = '#ef4444'; }
+    if (res) { res.textContent = 'Valve in transit…'; res.className = 'out'; }
     swTick();
   } else {
     cancelAnimationFrame(swRaf);
     swEl = performance.now() - swT0;
     swT0 = null;
-    $('#swBtn').textContent = '▶ Start Stroke';
-    $('#swBtn').style.background = '';
-    $('#swOut').textContent = (swEl / 1000).toFixed(3) + ' s';
+    if (btn) { btn.textContent = '▶ Start Stroke'; btn.style.background = ''; }
+    const out = $('#swOut');
+    if (out) out.textContent = (swEl / 1000).toFixed(3) + ' s';
     swCheck();
   }
 }
@@ -516,23 +534,31 @@ function swCheck() {
   if (isNaN(tg) || !swEl) return;
   const ok = swEl <= tg;
   triggerHaptic(ok ? 'success' : 'warning');
-  $('#swRes').className = 'out ' + (ok ? '' : 'bad');
-  $('#swRes').innerHTML = `<b>${ok ? '✅ PASS' : '🚨 FAIL'}</b>: ${(swEl / 1000).toFixed(3)}s stroke time vs ${n('swTarget')}s target limit.`;
+  const res = $('#swRes');
+  if (res) {
+    res.className = 'out ' + (ok ? '' : 'bad');
+    res.innerHTML = `<b>${ok ? '✅ PASS' : '🚨 FAIL'}</b>: ${(swEl / 1000).toFixed(3)}s stroke time vs ${n('swTarget')}s target limit.`;
+  }
 }
 
 function swReset() {
   cancelAnimationFrame(swRaf);
   swT0 = null;
   swEl = 0;
-  $('#swBtn').textContent = '▶ Start Stroke';
-  $('#swBtn').style.background = '';
-  $('#swOut').textContent = '0.000 s';
-  $('#swRes').className = 'out';
-  $('#swRes').textContent = 'Ready for valve stroke';
+  const btn = $('#swBtn');
+  if (btn) { btn.textContent = '▶ Start Stroke'; btn.style.background = ''; }
+  const out = $('#swOut');
+  if (out) out.textContent = '0.000 s';
+  const res = $('#swRes');
+  if (res) { res.className = 'out'; res.textContent = 'Ready'; }
 }
 
 function reg(id) {
-  const v = $('#' + id).value.trim(), f = $('#rfmt').value;
+  const el = $('#' + id);
+  if (!el) return NaN;
+  let v = el.value.trim();
+  const rfmtEl = $('#rfmt');
+  const f = rfmtEl ? rfmtEl.value : 'hex';
   if (!v) return NaN;
   const x = f === 'hex'
     ? (/^(0x)?[0-9a-f]{1,4}$/i.test(v) ? parseInt(v.replace(/^0x/i, ''), 16) : NaN)
@@ -551,18 +577,26 @@ function toFloat(a, b, bs, ws) {
 
 function fpCalc() {
   const a = reg('r1'), b = reg('r2'), o = $('#fpOut');
+  if (!o) return;
   if (isNaN(a) || isNaN(b)) {
     o.className = 'out bad';
     o.textContent = 'Enter two valid 16-bit values (0–65535 or 0000–FFFF)';
-    $('#fpAll').innerHTML = '';
+    const all = $('#fpAll');
+    if (all) all.innerHTML = '';
     return;
   }
-  const r = toFloat(a, b, $('#bs').checked, $('#ws').checked);
+  const bsEl = $('#bs'), wsEl = $('#ws');
+  const bs = bsEl ? bsEl.checked : false;
+  const ws = wsEl ? wsEl.checked : false;
+  const r = toFloat(a, b, bs, ws);
   o.className = 'out';
   o.innerHTML = `<b>Decoded Value: ${Number.isFinite(r.f) ? r.f.toPrecision(7) : r.f}</b><br><small class="hint">Assembled Registers: ${r.hex}</small>`;
-  $('#fpAll').innerHTML = '<table class="cal" style="margin-top:8px"><tr><th>Byte Order</th><th>Decoded Float</th></tr>' +
-    [['ABCD (Big Endian)', 0, 0], ['CDAB (Word Swap)', 0, 1], ['BADC (Byte Swap)', 1, 0], ['DCBA (Double Swap)', 1, 1]]
-      .map(([l, x, y]) => `<tr><td>${l}</td><td><b>${toFloat(a, b, !!x, !!y).f.toPrecision(6)}</b></td></tr>`).join('') + '</table>';
+  const all = $('#fpAll');
+  if (all) {
+    all.innerHTML = '<table class="cal" style="margin-top:8px"><tr><th>Byte Order</th><th>Decoded Float</th></tr>' +
+      [['ABCD (Big Endian)', 0, 0], ['CDAB (Word Swap)', 0, 1], ['BADC (Byte Swap)', 1, 0], ['DCBA (Double Swap)', 1, 1]]
+        .map(([l, x, y]) => `<tr><td>${l}</td><td><b>${toFloat(a, b, !!x, !!y).f.toPrecision(6)}</b></td></tr>`).join('') + '</table>';
+  }
 }
 
 function renderTools() {
@@ -643,7 +677,13 @@ function renderTools() {
         <button type="button" class="chip" id="mb-ex2">Demo: 100.5 bar Pressure</button>
       </div>
 
-      <div class="grid">
+      <label>Input format</label>
+      <select id="rfmt">
+        <option value="hex">Hex</option>
+        <option value="dec">Decimal</option>
+      </select>
+
+      <div class="grid" style="margin-top:6px">
         <div><label>Register 1 (High Word)</label><input id="r1" type="text" autocapitalize="characters" value="41C8"></div>
         <div><label>Register 2 (Low Word)</label><input id="r2" type="text" autocapitalize="characters" value="0000"></div>
       </div>
@@ -657,7 +697,9 @@ function renderTools() {
   `;
 
   const ux = () => {
-    const lo = n('clo'), hi = n('chi'), unit = $('#cunit').value || '';
+    const lo = n('clo'), hi = n('chi');
+    const unitEl = $('#cunit');
+    const unit = unitEl ? unitEl.value : '';
     PTS.forEach((p, i) => {
       const el = $('#u' + i);
       if (el) el.textContent = (lo + (p / 100) * (hi - lo)).toFixed(2) + ' ' + unit;
@@ -672,39 +714,67 @@ function renderTools() {
     if (['r1', 'r2', 'bs', 'ws'].includes(id)) fpCalc();
   });
 
-  $('#calFill').onclick = () => {
-    PTS.forEach((p, i) => {
-      const el = $('#m' + i);
-      if (el) el.value = (4 + (16 * p) / 100).toFixed(2);
-    });
-    calRows();
-    triggerHaptic('success');
-  };
+  const rfmtEl = $('#rfmt');
+  if (rfmtEl) {
+    rfmtEl.onchange = () => {
+      const hex = rfmtEl.value === 'hex';
+      ['r1', 'r2'].forEach(id => {
+        const el = $('#' + id);
+        if (!el) return;
+        const x = parseInt(el.value, hex ? 10 : 16);
+        if (!isNaN(x)) el.value = hex ? x.toString(16).toUpperCase().padStart(4, '0') : parseInt(el.value, 16);
+      });
+      fpCalc();
+    };
+  }
 
-  $('#calSave').onclick = saveCal;
-  $('#calClear').onclick = () => {
-    if (confirm('Delete all saved calibration records?')) {
-      store.set([]); listRecords();
-    }
-  };
-  $('#calCsv').onclick = () => {
-    const r = store.get();
-    if (!r.length) { alert('No calibration records to export.'); return; }
-    let csv = 'Tag,Status,Max_Error_Pct,Tolerance_Pct,Timestamp\n';
-    r.forEach(x => {
-      csv += `"${x.tag}","${x.pass ? 'PASS' : 'FAIL'}",${x.maxErr.toFixed(3)},${x.tol},"${new Date(x.ts).toISOString()}"\n`;
-    });
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const u = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = u; a.download = 'Loop_Calibration_Log.csv'; a.click();
-  };
+  const fillBtn = $('#calFill');
+  if (fillBtn) {
+    fillBtn.onclick = () => {
+      PTS.forEach((p, i) => {
+        const el = $('#m' + i);
+        if (el) el.value = (4 + (16 * p) / 100).toFixed(2);
+      });
+      calRows();
+      triggerHaptic('success');
+    };
+  }
 
-  $('#swBtn').onclick = swToggle;
-  $('#swReset').onclick = swReset;
+  const saveBtn = $('#calSave');
+  if (saveBtn) saveBtn.onclick = saveCal;
 
-  $('#mb-ex1').onclick = () => { $('#r1').value = '41C8'; $('#r2').value = '0000'; fpCalc(); };
-  $('#mb-ex2').onclick = () => { $('#r1').value = '42C9'; $('#r2').value = '0000'; fpCalc(); };
+  const clearBtn = $('#calClear');
+  if (clearBtn) {
+    clearBtn.onclick = () => {
+      if (confirm('Delete all saved calibration records?')) {
+        store.set([]); listRecords();
+      }
+    };
+  }
+
+  const csvBtn = $('#calCsv');
+  if (csvBtn) {
+    csvBtn.onclick = () => {
+      const r = store.get();
+      if (!r.length) { alert('No calibration records to export.'); return; }
+      let csv = 'Tag,Status,Max_Error_Pct,Tolerance_Pct,Timestamp\n';
+      r.forEach(x => {
+        csv += `"${x.tag}","${x.pass ? 'PASS' : 'FAIL'}",${x.maxErr.toFixed(3)},${x.tol},"${new Date(x.ts).toISOString()}"\n`;
+      });
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const u = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = u; a.download = 'Loop_Calibration_Log.csv'; a.click();
+    };
+  }
+
+  const swB = $('#swBtn'), swR = $('#swReset');
+  if (swB) swB.onclick = swToggle;
+  if (swR) swR.onclick = swReset;
+
+  const ex1 = $('#mb-ex1'), ex2 = $('#mb-ex2');
+  if (ex1) ex1.onclick = () => { const r1 = $('#r1'), r2 = $('#r2'); if (r1) r1.value = '41C8'; if (r2) r2.value = '0000'; fpCalc(); };
+  if (ex2) ex2.onclick = () => { const r1 = $('#r1'), r2 = $('#r2'); if (r1) r1.value = '42C9'; if (r2) r2.value = '0000'; fpCalc(); };
 
   ux();
   listRecords();
@@ -720,6 +790,7 @@ function rtdT(R, R0) {
 
 function rtdCalc() {
   const R = n('rtdR'), R0 = n('rtdR0'), o = $('#rtdOut');
+  if (!o) return;
   if (!(R > 0) || !(R0 > 0)) { o.textContent = 'Enter positive resistance'; return; }
   const t = rtdT(R, R0), f = t * 1.8 + 32;
   o.className = 'out' + (t < -200 || t > 850 ? ' bad' : '');
@@ -727,7 +798,9 @@ function rtdCalc() {
 }
 
 function renderPt100() {
-  $('#view-tools').insertAdjacentHTML('beforeend', `
+  const vt = $('#view-tools');
+  if (!vt) return;
+  vt.insertAdjacentHTML('beforeend', `
     <div class="card">
       <div class="card-head">
         <h3>Pt100 RTD Resistance to Temperature</h3>
@@ -741,7 +814,7 @@ function renderPt100() {
       <div id="rtdOut" class="out"></div>
     </div>
   `);
-  $('#view-tools').addEventListener('input', e => {
+  vt.addEventListener('input', e => {
     if (e.target.id === 'rtdR' || e.target.id === 'rtdR0') rtdCalc();
   });
   rtdCalc();
@@ -755,7 +828,9 @@ const MBX = {
 };
 
 function renderModbus() {
-  $('#view-tools').insertAdjacentHTML('beforeend', `
+  const vt = $('#view-tools');
+  if (!vt) return;
+  vt.insertAdjacentHTML('beforeend', `
     <div class="card">
       <div class="card-head">
         <h3>Modbus Exception Code Decoder</h3>
@@ -782,11 +857,17 @@ function renderModbus() {
   `);
 
   const show = () => {
-    const x = MBX[$('#mbx').value];
-    $('#mbxOut').className = 'out warn';
-    $('#mbxOut').innerHTML = `<b>${x[0]}</b><br>${x[1]}<br><small class="hint">Remedy: ${x[2]}</small>`;
+    const mbxEl = $('#mbx');
+    if (!mbxEl) return;
+    const x = MBX[mbxEl.value];
+    const out = $('#mbxOut');
+    if (out && x) {
+      out.className = 'out warn';
+      out.innerHTML = `<b>${x[0]}</b><br>${x[1]}<br><small class="hint">Remedy: ${x[2]}</small>`;
+    }
   };
-  $('#mbx').onchange = show;
+  const mbxEl = $('#mbx');
+  if (mbxEl) mbxEl.onchange = show;
   show();
 }
 
@@ -831,7 +912,7 @@ function satProgress() {
   const c = document.querySelectorAll('.satchk:checked').length;
   const el = $('#satProg');
   if (el) {
-    el.className = 'out ' + (c === t ? 'ok' : '');
+    el.className = 'out ' + (c === t && t > 0 ? 'ok' : '');
     el.innerHTML = `<b>SAT Progress: ${c} of ${t} steps completed (${t > 0 ? Math.round((c / t) * 100) : 0}%)</b>`;
   }
 }
@@ -884,22 +965,29 @@ function renderSat() {
     triggerHaptic(document.querySelectorAll('.satchk').length === document.querySelectorAll('.satchk:checked').length ? 'success' : 'light');
   });
 
-  $('#satReset').onclick = () => {
-    if (confirm('Reset all 20 commissioning steps?')) {
-      satSet({});
-      document.querySelectorAll('.satchk').forEach(c => c.checked = false);
-      satProgress();
-      triggerHaptic('warning');
-    }
-  };
+  const rBtn = $('#satReset');
+  if (rBtn) {
+    rBtn.onclick = () => {
+      if (confirm('Reset all 20 commissioning steps?')) {
+        satSet({});
+        document.querySelectorAll('.satchk').forEach(c => c.checked = false);
+        satProgress();
+        triggerHaptic('warning');
+      }
+    };
+  }
 
-  $('#satExp').onclick = () => {
-    const ref = $('#satRef').value || 'TK-UNSPECIFIED';
-    const eng = $('#satEng').value || 'Unassigned';
-    const c = document.querySelectorAll('.satchk:checked').length;
-    const t = document.querySelectorAll('.satchk').length;
-    alert(`AGAC SAT SUMMARY REPORT\nTarget: ${ref}\nLead Engineer: ${eng}\nProgress: ${c}/${t} verified steps.\nTimestamp: ${new Date().toLocaleString()}`);
-  };
+  const expBtn = $('#satExp');
+  if (expBtn) {
+    expBtn.onclick = () => {
+      const refEl = $('#satRef'), engEl = $('#satEng');
+      const ref = refEl ? refEl.value || 'TK-UNSPECIFIED' : 'TK-UNSPECIFIED';
+      const eng = engEl ? engEl.value || 'Unassigned' : 'Unassigned';
+      const c = document.querySelectorAll('.satchk:checked').length;
+      const t = document.querySelectorAll('.satchk').length;
+      alert(`AGAC SAT SUMMARY REPORT\nTarget: ${ref}\nLead Engineer: ${eng}\nProgress: ${c}/${t} verified steps.\nTimestamp: ${new Date().toLocaleString()}`);
+    };
+  }
 
   satProgress();
 }
@@ -927,8 +1015,3 @@ function pRestore() {
 
 document.addEventListener('input', pSave);
 document.addEventListener('change', pSave);
-
-/* ---------- INITIALIZE ENGINE ---------- */
-document.addEventListener('DOMContentLoaded', () => {
-  renderCalc();
-});
